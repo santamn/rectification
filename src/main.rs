@@ -7,34 +7,34 @@ use std::ops::{Add, Sub};
 type Real = f64; // 計算の精度を決める型
 
 const PARTICLES: u64 = 30_000;
-const STEPS: u64 = 10_000;
+const STEPS: u64 = 100_000;
 const SQRT_DELTA_T: Real = 0.1;
 const F: Real = 1.0;
 
-// 境界条件 ω(x) の上部・下部を区別するためのマーカー
-struct Ceiling; // 上部: y = ω(x)
-struct Floor; // 下部: y = -ω(x)
+// 境界条件 ω(x) の上/下を区別するためのマーカー
+struct Plus; // y = ω(x)
+struct Minus; // y = -ω(x)
 
 trait Boundary {
     /// 境界 y = ±ω(x) の符号を表す
     fn sign<T: RealField>() -> T;
 }
 
-impl Boundary for Ceiling {
+impl Boundary for Plus {
     #[inline]
     fn sign<T: RealField>() -> T {
         T::one()
     }
 }
 
-impl Boundary for Floor {
+impl Boundary for Minus {
     #[inline]
     fn sign<T: RealField>() -> T {
         -T::one()
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 struct Particle<T: Scalar> {
     current: Point2<T>,
     initial: Point2<T>,
@@ -82,15 +82,14 @@ where
 
 fn main() {
     let displacements = (0..PARTICLES)
-        .into_par_iter()
+        .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
             let particle = Particle::new(random_point(&mut rng));
 
-            // 各粒子について 外力F + ブラウン運動 のシミュレーションを行う
             (0..STEPS)
                 .map(|_| {
-                    // 微小時間に粒子に加わる外力 + ブラウン運動
+                    // 微小時間に粒子に加わる外力F + ブラウン運動
                     Vector2::new(
                         rng.sample::<Real, _>(StandardNormal) * SQRT_DELTA_T + F,
                         rng.sample::<Real, _>(StandardNormal) * SQRT_DELTA_T,
@@ -99,12 +98,12 @@ fn main() {
                 .fold(particle, |acc, dr| {
                     let tentative_pos = acc.current + dr;
 
-                    acc + if omega::<Ceiling, Real>(tentative_pos.x) < tentative_pos.y {
+                    acc + if omega::<Plus, Real>(tentative_pos.x) < tentative_pos.y {
                         // 粒子が天井と衝突する場合
-                        reflected_vector::<Ceiling, Real>(&acc.current, &dr)
-                    } else if tentative_pos.y < omega::<Floor, Real>(tentative_pos.x) {
+                        reflected_vector::<Plus, Real>(&acc.current, &dr)
+                    } else if tentative_pos.y < omega::<Minus, Real>(tentative_pos.x) {
                         // 粒子が床と衝突する場合
-                        reflected_vector::<Floor, Real>(&acc.current, &dr)
+                        reflected_vector::<Minus, Real>(&acc.current, &dr)
                     } else {
                         // 衝突なし
                         dr
@@ -158,7 +157,7 @@ where
     B: Boundary,
     T: RealField + Copy,
 {
-    Vector2::new(omega_prime::<Ceiling, T>(x), -B::sign::<T>()).normalize()
+    Vector2::new(omega_prime::<Plus, T>(x), -B::sign::<T>()).normalize()
 }
 
 /// チャネル内のランダムな初期位置を生成
@@ -168,17 +167,17 @@ where
     T: RealField + SampleUniform + Copy,
 {
     let x = rng.random_range(T::zero()..T::one());
-    let y = rng.random_range(omega::<Floor, T>(x)..omega::<Ceiling, T>(x));
+    let y = rng.random_range(omega::<Minus, T>(x)..omega::<Plus, T>(x));
     Point2::new(x, y)
 }
 
 /// ニュートン法で方程式 f(x)=0 の根を求める
-// FIXME
+// FIXME: 一定時間内に計算が収束しない
 fn newton_root<F, G, T>(f: F, df: G, x0: T) -> Point2<T>
 where
-    T: RealField + Copy,
     F: Fn(T) -> T,
     G: Fn(T) -> T,
+    T: RealField + Copy,
 {
     std::iter::successors(Some(x0), |&x| Some(x - f(x) / df(x)))
         .find_map(|x| (f(x).abs() <= convert(0.000_1)).then_some(Point2::new(x, f(x))))
