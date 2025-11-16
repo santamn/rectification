@@ -1,0 +1,65 @@
+{
+  "name": "rectification",
+  "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
+  "workspaceFolder": "/workspace",
+  "mounts": [
+    // ローカルでdev containerを使う場合は以下が必要
+    // {
+    //   "source": "${localWorkspaceFolder}",
+    //   "target": "/workspace",
+    //   "type": "bind"
+    // },
+    {
+      "source": "rectification-cargo-registry",
+      "target": "/usr/local/cargo/registry",
+      "type": "volume"
+    },
+    {
+      "source": "rectification-cargo-git",
+      "target": "/usr/local/cargo/git",
+      "type": "volume"
+    }
+  ],
+  "features": {
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "build-essential, clang, mold"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "configureZshAsDefaultShell": "true",
+      "username": "miyake"
+    }
+  },
+  "postCreateCommand": "cargo fetch",
+  "containerUser": "miyake",
+  "remoteUser": "miyake",
+  "containerEnv": {
+    "CARGO_TERM_COLOR": "always"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "editor.fontSize": 14,
+        "editor.fontFamily": "Fira Code",
+        "editor.fontLigatures": true,
+        "editor.formatOnSave": true,
+        "editor.inlineSuggest.enabled": true,
+        "editor.insertSpaces": true,
+        "editor.linkedEditing": true,
+        "editor.minimap.showSlider": "always",
+        "editor.suggestSelection": "first",
+        "editor.tabSize": 2,
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.inlayHints.chainingHints.enable": false,
+        "rust-analyzer.inlayHints.typeHints.enable": false,
+        "[rust]": {
+          "editor.tabSize": 4
+        }
+      }
+    }
+  }
+}
