@@ -18,6 +18,11 @@
       "source": "rectification-cargo-git",
       "target": "/usr/local/cargo/git",
       "type": "volume"
+    },
+    {
+      "source": "rectification-target",
+      "target": "${containerWorkspaceFolder}/target",
+      "type": "volume"
     }
   ],
   "features": {
@@ -29,9 +34,9 @@
       "username": "miyake"
     }
   },
-  "postCreateCommand": "cargo fetch",
   "containerUser": "miyake",
   "remoteUser": "miyake",
+  "postCreateCommand": "cargo fetch",
   "containerEnv": {
     "CARGO_TERM_COLOR": "always"
   },
@@ -41,25 +46,7 @@
         "rust-lang.rust-analyzer",
         "vadimcn.vscode-lldb",
         "tamasfe.even-better-toml"
-      ],
-      "settings": {
-        "editor.fontSize": 14,
-        "editor.fontFamily": "Fira Code",
-        "editor.fontLigatures": true,
-        "editor.formatOnSave": true,
-        "editor.inlineSuggest.enabled": true,
-        "editor.insertSpaces": true,
-        "editor.linkedEditing": true,
-        "editor.minimap.showSlider": "always",
-        "editor.suggestSelection": "first",
-        "editor.tabSize": 2,
-        "rust-analyzer.check.command": "clippy",
-        "rust-analyzer.inlayHints.chainingHints.enable": false,
-        "rust-analyzer.inlayHints.typeHints.enable": false,
-        "[rust]": {
-          "editor.tabSize": 4
-        }
-      }
+      ]
     }
   }
 }
