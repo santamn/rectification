@@ -198,28 +198,21 @@ where
     );
     // 衝突点での法線ベクトルを求める
     let n = normal_vector::<B, T>(intersection.x);
-
+    // 移動ベクトルを壁で反射したものを返す
     dr - n * convert::<_, T>(2.0) * n.dot(&(current + dr - intersection))
 }
 
 /// 非線形移動度
-fn nonlinear_mobility<T>(mean_displacement: T, force: T, steps: T, delta_t: T) -> T
-where
-    T: RealField,
-{
+fn nonlinear_mobility(mean_displacement: Real, force: Real, steps: Real, delta_t: Real) -> Real {
     mean_displacement / force * steps * delta_t
 }
 
 /// 有効拡散係数
-fn effective_diffusion<T>(
-    mean_displacement: T,
-    mean_square_displacement: T,
-    steps: T,
-    delta_t: T,
-) -> T
-where
-    T: RealField + Copy,
-{
-    (mean_square_displacement - mean_displacement * mean_displacement)
-        / (convert::<_, T>(2.0) * steps * delta_t)
+fn effective_diffusion(
+    mean_displacement: Real,
+    mean_square_displacement: Real,
+    steps: Real,
+    delta_t: Real,
+) -> Real {
+    (mean_square_displacement - mean_displacement * mean_displacement) / (2.0 * steps * delta_t)
 }

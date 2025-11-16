@@ -11,5 +11,3 @@ rayon = "1.11.0"
 
 [profile.release]
 lto = "fat"
-
-# 環境変数: RUSTFLAGS="-C target-cpu=native"
