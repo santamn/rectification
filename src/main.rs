@@ -1,15 +1,18 @@
 use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
-use rand_distr::{StandardNormal, uniform::SampleUniform};
+use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
-use std::ops::{Add, Sub};
+use std::{
+    f64::consts::SQRT_2,
+    ops::{Add, Sub},
+};
 
 type Real = f64; // 計算の精度を決める型
 
 const PARTICLES: u64 = 30_000;
 const STEPS: u64 = 100_000;
-const SQRT_DELTA_T: Real = 0.1;
-const F: Real = 1.0;
+const DELTA_T: Real = 0.000_1;
+const TIME: Real = STEPS as Real * DELTA_T;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
 struct Plus; // y = ω(x)
@@ -81,29 +84,57 @@ where
 }
 
 fn main() {
-    let displacements = (0..PARTICLES)
+    let start = std::time::Instant::now();
+    let (mean, mean_square) = simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(1.0, 0.0));
+    let (mean_rev, mean_square_rev) =
+        simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(-1.0, 0.0));
+
+    let mu = nonlinear_mobility(mean / TIME, 1.0);
+    let mu_rev = nonlinear_mobility(mean_rev / TIME, 1.0);
+
+    println!("μ(f): {}", mu);
+    println!("μ(-f): {}", mu_rev);
+    println!("D_eff: {}", effective_diffusion(mean, mean_square, TIME));
+    println!(
+        "D_eff_rev: {}",
+        effective_diffusion(mean_rev, mean_square_rev, TIME)
+    );
+    println!("α: {}", alpha(mu, mu_rev));
+    println!("Elapsed: {:.2?}", start.elapsed());
+}
+
+/// 粒子シミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
+fn simulate_particles<T>(steps: u64, particles: u64, delta_t: T, f: Vector2<T>) -> (T, T)
+where
+    T: RealField + SampleUniform + Copy,
+    StandardNormal: Distribution<T>,
+{
+    let sqrt_delta_t = delta_t.sqrt();
+    let displacements = (0..particles)
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
             let particle = Particle::new(random_point(&mut rng));
 
-            (0..STEPS)
+            (0..steps)
                 .map(|_| {
                     // 微小時間に粒子に加わる外力F + ブラウン運動
-                    Vector2::new(
-                        rng.sample::<Real, _>(StandardNormal) * SQRT_DELTA_T + F,
-                        rng.sample::<Real, _>(StandardNormal) * SQRT_DELTA_T,
-                    )
+                    f * delta_t
+                        + Vector2::new(
+                            rng.sample::<T, _>(StandardNormal),
+                            rng.sample::<T, _>(StandardNormal),
+                        ) * convert::<_, T>(SQRT_2)
+                            * sqrt_delta_t
                 })
                 .fold(particle, |acc, dr| {
-                    let tentative_pos = acc.current + dr;
+                    let tentative_pos: Point2<T> = acc.current + dr;
 
-                    acc + if omega::<Plus, Real>(tentative_pos.x) < tentative_pos.y {
+                    acc + if omega::<Plus, T>(tentative_pos.x) < tentative_pos.y {
                         // 粒子が天井と衝突する場合
-                        reflected_vector::<Plus, Real>(&acc.current, &dr)
-                    } else if tentative_pos.y < omega::<Minus, Real>(tentative_pos.x) {
+                        reflected_vector::<Plus, T>(&acc.current, &dr)
+                    } else if tentative_pos.y < omega::<Minus, T>(tentative_pos.x) {
                         // 粒子が床と衝突する場合
-                        reflected_vector::<Minus, Real>(&acc.current, &dr)
+                        reflected_vector::<Minus, T>(&acc.current, &dr)
                     } else {
                         // 衝突なし
                         dr
@@ -113,22 +144,10 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mean = displacements.iter().sum::<Real>() / PARTICLES as Real;
-    let mean_square = displacements.iter().map(|x| x * x).sum::<Real>() / PARTICLES as Real;
-
-    println!(
-        "μ(f): {}",
-        nonlinear_mobility(mean, F, STEPS as Real, SQRT_DELTA_T * SQRT_DELTA_T)
-    );
-    println!(
-        "D_eff: {}",
-        effective_diffusion(
-            mean,
-            mean_square,
-            STEPS as Real,
-            SQRT_DELTA_T * SQRT_DELTA_T
-        )
-    );
+    (
+        displacements.iter().fold(T::zero(), |a, &x| a + x) / convert::<_, T>(particles as f64),
+        displacements.iter().fold(T::zero(), |a, &x| a + x * x) / convert::<_, T>(particles as f64),
+    )
 }
 
 /// チャネル境界 ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12
@@ -151,7 +170,7 @@ where
     B::sign::<T>() * (T::two_pi() * c * (c + T::one()) - T::pi())
 }
 
-/// チャネル境界における内側への法線ベクトル
+/// チャネル境界における内側への単位法線ベクトル
 fn normal_vector<B, T>(x: T) -> Vector2<T>
 where
     B: Boundary,
@@ -171,17 +190,23 @@ where
     Point2::new(x, y)
 }
 
-/// ニュートン法で方程式 f(x)=0 の根を求める
-// FIXME: 一定時間内に計算が収束しない
-fn newton_root<F, G, T>(f: F, df: G, x0: T) -> Point2<T>
+/// 2分探索で方程式 f(x)=0 の根を求める
+/// f(a)*f(b) < 0 を満たす a,b を与えること
+fn binary_search_root<F, T>(f: F, a: T, b: T) -> T
 where
-    F: Fn(T) -> T,
-    G: Fn(T) -> T,
+    F: Fn(&T) -> T,
     T: RealField + Copy,
 {
-    std::iter::successors(Some(x0), |&x| Some(x - f(x) / df(x)))
-        .find_map(|x| (f(x).abs() <= convert(0.000_1)).then_some(Point2::new(x, f(x))))
-        .unwrap()
+    std::iter::successors(
+        Some(if f(&a).is_positive() { (a, b) } else { (b, a) }),
+        |&(h, l)| {
+            let m = (h + l) * convert(0.5);
+            Some(if f(&m).is_positive() { (m, l) } else { (h, m) })
+        },
+    )
+    .nth(20)
+    .map(|(a, b)| (a + b) * convert(0.5))
+    .unwrap()
 }
 
 /// 粒子の移動ベクトルを壁で反射させたものを返す
@@ -191,28 +216,32 @@ where
     T: RealField + Copy,
 {
     // 粒子と壁の衝突点を求める
-    let intersection = newton_root(
-        |x| current.y + dr.y * (x - current.x) / dr.x - omega::<B, T>(x),
-        |x| dr.y / dr.x - omega_prime::<B, T>(x),
+    let x = binary_search_root(
+        |&x| current.y + (current.x - x) * dr.y / dr.x - omega::<B, T>(x),
+        current.x + dr.x,
         current.x,
     );
     // 衝突点での法線ベクトルを求める
-    let n = normal_vector::<B, T>(intersection.x);
+    let n = normal_vector::<B, T>(x);
     // 移動ベクトルを壁で反射したものを返す
-    dr - n * convert::<_, T>(2.0) * n.dot(&(current + dr - intersection))
+    dr - n * convert::<_, T>(2.0) * n.dot(&(current + dr - Point2::new(x, omega::<B, T>(x))))
 }
 
-/// 非線形移動度
-fn nonlinear_mobility(mean_displacement: Real, force: Real, steps: Real, delta_t: Real) -> Real {
-    mean_displacement / force * steps * delta_t
+/// 非線形移動度 μ(f) = ⟨v⟩/f
+fn nonlinear_mobility(mean_speed: Real, force: Real) -> Real {
+    mean_speed / force
 }
 
-/// 有効拡散係数
+/// 有効拡散係数 D_eff = (⟨x²⟩ - ⟨x⟩²) / (2t)
 fn effective_diffusion(
     mean_displacement: Real,
     mean_square_displacement: Real,
-    steps: Real,
-    delta_t: Real,
+    time: Real,
 ) -> Real {
-    (mean_square_displacement - mean_displacement * mean_displacement) / (2.0 * steps * delta_t)
+    (mean_square_displacement - mean_displacement * mean_displacement) / (2.0 * time)
+}
+
+/// 整流尺度 α = |μ(f) - μ(-f)| / (μ(f) + μ(-f))
+fn alpha(mu: Real, mu_rev: Real) -> Real {
+    (mu - mu_rev).abs() / (mu + mu_rev)
 }
