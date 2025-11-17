@@ -85,12 +85,12 @@ where
 
 fn main() {
     let start = std::time::Instant::now();
-    let (mean, mean_square) = simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(1.0, 0.0));
-    let (mean_rev, mean_square_rev) =
-        simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(-1.0, 0.0));
+    let f = Vector2::new(1.0, 0.0);
+    let (mean, mean_square) = simulate_particles(STEPS, PARTICLES, DELTA_T, f);
+    let (mean_rev, mean_square_rev) = simulate_particles(STEPS, PARTICLES, DELTA_T, -f);
 
-    let mu = nonlinear_mobility(mean / TIME, 1.0);
-    let mu_rev = nonlinear_mobility(mean_rev / TIME, 1.0);
+    let mu = nonlinear_mobility(mean / TIME, f.norm());
+    let mu_rev = nonlinear_mobility(-mean_rev / TIME, f.norm());
 
     println!("μ(f): {}", mu);
     println!("μ(-f): {}", mu_rev);
