@@ -3,12 +3,11 @@
   "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
   "workspaceFolder": "/workspace",
   "mounts": [
-    // ローカルでdev containerを使う場合は以下が必要
-    // {
-    //   "source": "${localWorkspaceFolder}",
-    //   "target": "/workspace",
-    //   "type": "bind"
-    // },
+    {
+      "source": "${localWorkspaceFolder}",
+      "target": "/workspace",
+      "type": "bind"
+    },
     {
       "source": "rectification-cargo-registry",
       "target": "/usr/local/cargo/registry",
