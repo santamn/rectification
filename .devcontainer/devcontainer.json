@@ -23,6 +23,11 @@
       "source": "rectification-target",
       "target": "${containerWorkspaceFolder}/target",
       "type": "volume"
+    },
+    {
+      "source": "${env:SSH_AUTH_SOCK}",
+      "target": "/ssh-agent",
+      "type": "bind"
     }
   ],
   "features": {
@@ -38,7 +43,8 @@
   "remoteUser": "miyake",
   "postCreateCommand": "cargo fetch",
   "containerEnv": {
-    "CARGO_TERM_COLOR": "always"
+    "CARGO_TERM_COLOR": "always",
+    "SSH_AUTH_SOCK": "/ssh-agent"
   },
   "customizations": {
     "vscode": {
