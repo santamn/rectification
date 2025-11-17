@@ -1,6 +1,6 @@
 {
   "name": "rectification",
-  "image": "mcr.microsoft.com/devcontainers/rust:2-1-trixie",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
   "workspaceFolder": "/workspace",
   "mounts": [
     {
@@ -30,12 +30,15 @@
     }
   ],
   "features": {
-    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-      "packages": "build-essential, clang, mold"
-    },
     "ghcr.io/devcontainers/features/common-utils:2": {
       "configureZshAsDefaultShell": "true",
       "username": "miyake"
+    },
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "1.91.1"
+    },
+    "ghcr.io/devcontainers-extra/features/apt-packages:1": {
+      "packages": "build-essential, clang, mold"
     }
   },
   "containerUser": "miyake",
