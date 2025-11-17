@@ -2,10 +2,10 @@ use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
-use std::{
-    f64::consts::SQRT_2,
-    ops::{Add, Sub},
-};
+use std::f64::consts::SQRT_2;
+use std::fs::File;
+use std::io::{BufWriter, Write};
+use std::ops::{Add, Sub};
 
 type Real = f64; // 計算の精度を決める型
 
@@ -85,21 +85,30 @@ where
 
 fn main() {
     let start = std::time::Instant::now();
-    let f = Vector2::new(1.0, 0.0);
-    let (mean, mean_square) = simulate_particles(STEPS, PARTICLES, DELTA_T, f);
-    let (mean_rev, mean_square_rev) = simulate_particles(STEPS, PARTICLES, DELTA_T, -f);
 
-    let mu = nonlinear_mobility(mean / TIME, f.norm());
-    let mu_rev = nonlinear_mobility(-mean_rev / TIME, f.norm());
+    let mut mu_writer = BufWriter::new(File::create("data/mu_data.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/d_data.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/alpha_data.dat").unwrap());
 
-    println!("μ(f): {}", mu);
-    println!("μ(-f): {}", mu_rev);
-    println!("D_eff: {}", effective_diffusion(mean, mean_square, TIME));
-    println!(
-        "D_eff_rev: {}",
-        effective_diffusion(mean_rev, mean_square_rev, TIME)
-    );
-    println!("α: {}", alpha(mu, mu_rev));
+    for i in 1..=100 {
+        let f_x = i as Real;
+
+        let (mean, mean_square) =
+            simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(f_x, 0.0));
+        let (mean_rev, mean_square_rev) =
+            simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(-f_x, 0.0));
+
+        let mu = nonlinear_mobility(mean / TIME, f_x);
+        let mu_rev = nonlinear_mobility(-mean_rev / TIME, f_x);
+        let d_eff = effective_diffusion(mean, mean_square, TIME);
+        let d_eff_rev = effective_diffusion(mean_rev, mean_square_rev, TIME);
+        let alpha_val = alpha(mu, mu_rev);
+
+        writeln!(mu_writer, "{} {} {}", f_x, mu, mu_rev).unwrap();
+        writeln!(d_writer, "{} {} {}", f_x, d_eff, d_eff_rev).unwrap();
+        writeln!(alpha_writer, "{} {}", f_x, alpha_val).unwrap();
+    }
+
     println!("Elapsed: {:.2?}", start.elapsed());
 }
 
