@@ -9,10 +9,10 @@ use std::ops::{Add, Sub};
 
 type Real = f64; // 計算の精度を決める型
 
-const PARTICLES: u64 = 30_000;
-const STEPS: u64 = 100_000;
-const DELTA_T: Real = 0.000_1;
-const TIME: Real = STEPS as Real * DELTA_T;
+const PARTICLES: u64 = 30_000; // アンサンブル平均に用いる粒子数
+const STEPS: u64 = 100_000; // シミュレーションの時間ステップ数
+const DELTA_T: Real = 0.000_1; // 時間刻み幅
+const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
 struct Plus; // y = ω(x)
@@ -86,20 +86,20 @@ where
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/mu_data.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/d_data.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/alpha_data.dat").unwrap());
+    let mut mu_writer = BufWriter::new(File::create("data/mu.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/d_eff.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/alpha.dat").unwrap());
 
-    for i in 1..=100 {
+    for i in 0..=100 {
         let f_x = i as Real;
 
         let (mean, mean_square) =
-            simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(f_x, 0.0));
+            simulate_brownian_motion(STEPS, PARTICLES, DELTA_T, Vector2::new(f_x, 0.0));
         let (mean_rev, mean_square_rev) =
-            simulate_particles(STEPS, PARTICLES, DELTA_T, Vector2::new(-f_x, 0.0));
+            simulate_brownian_motion(STEPS, PARTICLES, DELTA_T, Vector2::new(-f_x, 0.0));
 
         let mu = nonlinear_mobility(mean / TIME, f_x);
-        let mu_rev = nonlinear_mobility(-mean_rev / TIME, f_x);
+        let mu_rev = nonlinear_mobility(mean_rev / TIME, -f_x);
         let d_eff = effective_diffusion(mean, mean_square, TIME);
         let d_eff_rev = effective_diffusion(mean_rev, mean_square_rev, TIME);
         let alpha_val = alpha(mu, mu_rev);
@@ -112,8 +112,8 @@ fn main() {
     println!("Elapsed: {:.2?}", start.elapsed());
 }
 
-/// 粒子シミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
-fn simulate_particles<T>(steps: u64, particles: u64, delta_t: T, f: Vector2<T>) -> (T, T)
+/// ブラウン運動のシミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
+fn simulate_brownian_motion<T>(steps: u64, particles: u64, delta_t: T, f: Vector2<T>) -> (T, T)
 where
     T: RealField + SampleUniform + Copy,
     StandardNormal: Distribution<T>,
@@ -188,7 +188,7 @@ where
     Vector2::new(omega_prime::<Plus, T>(x), -B::sign::<T>()).normalize()
 }
 
-/// チャネル内のランダムな初期位置を生成
+/// 0 <= x <= 1 の範囲でチャネル内のランダムな座標を生成
 fn random_point<R, T>(rng: &mut R) -> Point2<T>
 where
     R: rand::Rng + ?Sized,
@@ -200,7 +200,7 @@ where
 }
 
 /// 2分探索で方程式 f(x)=0 の根を求める
-/// f(a)*f(b) < 0 を満たす a,b を与えること
+/// 引数には f(a)*f(b) < 0 を満たす a, b を与えること
 fn binary_search_root<F, T>(f: F, a: T, b: T) -> T
 where
     F: Fn(&T) -> T,
@@ -241,7 +241,7 @@ fn nonlinear_mobility(mean_speed: Real, force: Real) -> Real {
     mean_speed / force
 }
 
-/// 有効拡散係数 D_eff = (⟨x²⟩ - ⟨x⟩²) / (2t)
+/// 有効拡散係数 D_eff = (⟨x²⟩ - ⟨x⟩²)/2t
 fn effective_diffusion(
     mean_displacement: Real,
     mean_square_displacement: Real,
