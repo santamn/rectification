@@ -1,0 +1,14 @@
+set term lua tikz
+set output "d_eff.tex"
+
+set key top left offset 3, -2
+set logscale x                 
+
+set xlabel "$|f|$"             
+set ylabel "$D_{\\mathrm{eff}}$"
+set yrange [0:10]
+
+plot "../data/d_eff.dat" using 1:2 with points pt 7  title "Forward", \
+      "../data/d_eff.dat" using 1:3 with points pt 12 title "Reverse"
+
+unset terminal
