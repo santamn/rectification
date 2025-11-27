@@ -26,6 +26,7 @@ where
     where
         R: rand::Rng,
     {
+        // FIXME: 粒子が壁にめり込まないようにする
         let initial = random_point::<R, T>(rng);
         Self {
             initial,
@@ -42,15 +43,30 @@ where
 
     // この関数の挙動には次のような仮定が置かれている
     // 1. 粒子の両端が同時に相異なる壁に衝突することはない
-    // 2. 粒子の両端は高々1回しか壁に衝突しない
+    // 2. 粒子の両端はそれぞれ高々1回しか壁に衝突しない
     fn apply_forces(&mut self, forces: [Vector2<T>; 2]) {
-        // 両端にある粒子の現在位置を求める
+        // 両端の現在位置を求める
         let (p1, p2) = self.edge_positions();
         // 壁との衝突を考えない場合の両端の変位を求める
         let [dr_1, dr_2] = forces;
         let (dr_1, dr_2) = self.edges_displacements(&dr_1, &dr_2);
         // 壁との衝突を考えない場合の、両端の変位を適用した後の位置を求める
         let (tentative_1, tentative_2) = (p1 + dr_1, p2 + dr_2);
+
+        // if let (Below, Above) | (Above, Below) = (
+        //     Zone::of_point(
+        //         omega::<Minus, T>(tentative_1.x)..=omega::<Plus, T>(tentative_1.x),
+        //         &tentative_1,
+        //     ),
+        //     Zone::of_point(
+        //         omega::<Minus, T>(tentative_2.x)..=omega::<Plus, T>(tentative_2.x),
+        //         &tentative_2,
+        //     ),
+        // ) {
+        //     dbg!(p1, p2);
+        //     dbg!(dr_1, dr_2);
+        //     dbg!(tentative_1, tentative_2);
+        // }
 
         let (dr_c, dtheta) = match (
             Zone::of_point(
@@ -71,13 +87,14 @@ where
                 ) {
                     Less => {
                         // 先に端1が衝突する場合
-                        let (dr_1, dr_2) = self.advance_to_p1_collision::<Plus>(&dr_1, &dr_2);
+                        let (dr_1, dr_2) = self.advance_to_edge1_collision::<Plus>(&dr_1, &dr_2);
                         let (_, p2) = self.edge_positions();
 
                         // 端2が衝突するかどうかを判定
                         if omega::<Plus, T>(p2.x + dr_2.x) < p2.y + dr_2.y {
                             // 端2も衝突する場合
-                            let (dr_1, dr_2) = self.advance_to_p2_collision::<Plus>(&dr_1, &dr_2);
+                            let (dr_1, dr_2) =
+                                self.advance_to_edge2_collision::<Plus>(&dr_1, &dr_2);
                             self.delta(&dr_1, &dr_2)
                         } else {
                             // 端2は衝突しない場合
@@ -94,13 +111,14 @@ where
                     }
                     Greater => {
                         // 先に端2が衝突する場合
-                        let (dr_1, dr_2) = self.advance_to_p2_collision::<Plus>(&dr_1, &dr_2);
+                        let (dr_1, dr_2) = self.advance_to_edge2_collision::<Plus>(&dr_1, &dr_2);
                         let (p1, _) = self.edge_positions();
 
                         // 端1が衝突するかどうかを判定
                         if omega::<Plus, T>(p1.x + dr_1.x) < p1.y + dr_1.y {
                             // 端1も衝突する場合
-                            let (dr_1, dr_2) = self.advance_to_p1_collision::<Plus>(&dr_1, &dr_2);
+                            let (dr_1, dr_2) =
+                                self.advance_to_edge1_collision::<Plus>(&dr_1, &dr_2);
                             self.delta(&dr_1, &dr_2)
                         } else {
                             // 端1は衝突しない場合
@@ -111,13 +129,13 @@ where
             }
             (Above, Within) => {
                 // 端1が上壁に衝突する場合
-                let (dr_1, dr_2) = self.advance_to_p1_collision::<Plus>(&dr_1, &dr_2);
+                let (dr_1, dr_2) = self.advance_to_edge1_collision::<Plus>(&dr_1, &dr_2);
                 let (_, p2) = self.edge_positions();
 
                 // 端2が衝突するかどうかを判定
                 if omega::<Plus, T>(p2.x + dr_2.x) < p2.y + dr_2.y {
                     // 端2も衝突する場合
-                    let (dr_1, dr_2) = self.advance_to_p2_collision::<Plus>(&dr_1, &dr_2);
+                    let (dr_1, dr_2) = self.advance_to_edge2_collision::<Plus>(&dr_1, &dr_2);
                     self.delta(&dr_1, &dr_2)
                 } else {
                     // 端2は衝突しない場合
@@ -126,13 +144,13 @@ where
             }
             (Within, Above) => {
                 // 端2が上壁に衝突する場合
-                let (dr_1, dr_2) = self.advance_to_p2_collision::<Plus>(&dr_1, &dr_2);
+                let (dr_1, dr_2) = self.advance_to_edge2_collision::<Plus>(&dr_1, &dr_2);
                 let (p1, _) = self.edge_positions();
 
                 // 端1が衝突するかどうかを判定
                 if omega::<Plus, T>(p1.x + dr_1.x) < p1.y + dr_1.y {
                     // 端1も衝突する場合
-                    let (dr_1, dr_2) = self.advance_to_p1_collision::<Plus>(&dr_1, &dr_2);
+                    let (dr_1, dr_2) = self.advance_to_edge1_collision::<Plus>(&dr_1, &dr_2);
                     self.delta(&dr_1, &dr_2)
                 } else {
                     // 端1は衝突しない場合
@@ -142,13 +160,13 @@ where
             (Within, Within) => self.delta(&dr_1, &dr_2), // 両端とも壁に衝突しない場合
             (Below, Within) => {
                 // 端1が下壁に衝突する場合
-                let (dr_1, dr_2) = self.advance_to_p1_collision::<Minus>(&dr_1, &dr_2);
+                let (dr_1, dr_2) = self.advance_to_edge1_collision::<Minus>(&dr_1, &dr_2);
                 let (_, p2) = self.edge_positions();
 
                 // 端2が衝突するかどうかを判定
                 if p2.y + dr_2.y < omega::<Minus, T>(p2.x + dr_2.x) {
                     // 端2も衝突する場合
-                    let (dr_1, dr_2) = self.advance_to_p2_collision::<Minus>(&dr_1, &dr_2);
+                    let (dr_1, dr_2) = self.advance_to_edge2_collision::<Minus>(&dr_1, &dr_2);
                     self.delta(&dr_1, &dr_2)
                 } else {
                     // 端2は衝突しない場合
@@ -157,13 +175,13 @@ where
             }
             (Within, Below) => {
                 // 端2が下壁に衝突する場合
-                let (dr_1, dr_2) = self.advance_to_p2_collision::<Minus>(&dr_1, &dr_2);
+                let (dr_1, dr_2) = self.advance_to_edge2_collision::<Minus>(&dr_1, &dr_2);
                 let (p1, _) = self.edge_positions();
 
                 // 端1が衝突するかどうかを判定
                 if p1.y + dr_1.y < omega::<Minus, T>(p1.x + dr_1.x) {
                     // 端1も衝突する場合
-                    let (dr_1, dr_2) = self.advance_to_p1_collision::<Minus>(&dr_1, &dr_2);
+                    let (dr_1, dr_2) = self.advance_to_edge1_collision::<Minus>(&dr_1, &dr_2);
                     self.delta(&dr_1, &dr_2)
                 } else {
                     // 端1は衝突しない場合
@@ -179,13 +197,14 @@ where
                 ) {
                     Less => {
                         // 先に端1が衝突する場合
-                        let (dr_1, dr_2) = self.advance_to_p1_collision::<Minus>(&dr_1, &dr_2);
+                        let (dr_1, dr_2) = self.advance_to_edge1_collision::<Minus>(&dr_1, &dr_2);
                         let (_, p2) = self.edge_positions();
 
                         // 端2が衝突するかどうかを判定
                         if p2.y + dr_2.y < omega::<Minus, T>(p2.x + dr_2.x) {
                             // 端2も衝突する場合
-                            let (dr_1, dr_2) = self.advance_to_p2_collision::<Minus>(&dr_1, &dr_2);
+                            let (dr_1, dr_2) =
+                                self.advance_to_edge2_collision::<Minus>(&dr_1, &dr_2);
                             self.delta(&dr_1, &dr_2)
                         } else {
                             // 端2は衝突しない場合
@@ -202,13 +221,14 @@ where
                     }
                     Greater => {
                         // 先に端2が衝突する場合
-                        let (dr_1, dr_2) = self.advance_to_p2_collision::<Minus>(&dr_1, &dr_2);
+                        let (dr_1, dr_2) = self.advance_to_edge2_collision::<Minus>(&dr_1, &dr_2);
                         let (p1, _) = self.edge_positions();
 
                         // 端1が衝突するかどうかを判定
                         if p1.y + dr_1.y < omega::<Minus, T>(p1.x + dr_1.x) {
                             // 端1も衝突する場合
-                            let (dr_1, dr_2) = self.advance_to_p1_collision::<Minus>(&dr_1, &dr_2);
+                            let (dr_1, dr_2) =
+                                self.advance_to_edge1_collision::<Minus>(&dr_1, &dr_2);
                             self.delta(&dr_1, &dr_2)
                         } else {
                             // 端1は衝突しない場合
@@ -250,7 +270,8 @@ where
     fn delta(&self, dr_1: &Vector2<T>, dr_2: &Vector2<T>) -> (Vector2<T>, T) {
         (
             (dr_1 + dr_2) * convert::<_, T>(0.5),
-            (dr_1 - dr_2).dot(&self.e_theta()) / self.length,
+            // FIXME: dthetaの計算を確かめる
+            (dr_1 - dr_2).dot(&self.e_theta()) / self.length, // 質点の質量を1と仮定
         )
     }
 
@@ -271,14 +292,15 @@ where
         dr_1: &Vector2<T>,
         dr_2: &Vector2<T>,
     ) -> (Vector2<T>, Vector2<T>) {
-        let dr_c = (dr_1 + dr_2) * convert::<_, T>(0.5);
         let e_theta = self.e_theta();
+        // FIXME: dthetaの計算を確かめる
         let dv = e_theta * e_theta.dot(&(dr_1 - dr_2)) * convert::<_, T>(0.5);
+        let dr_c = (dr_1 + dr_2) * convert::<_, T>(0.5);
         (dr_c + dv, dr_c - dv)
     }
 
     /// 端1が壁に衝突し反射するまで時間を進める
-    fn advance_to_p1_collision<B>(
+    fn advance_to_edge1_collision<B>(
         &mut self,
         v_1: &Vector2<T>,
         v_2: &Vector2<T>,
@@ -309,7 +331,7 @@ where
     }
 
     // 端2が壁に衝突し反射するまで時間を進める
-    fn advance_to_p2_collision<B>(
+    fn advance_to_edge2_collision<B>(
         &mut self,
         v_1: &Vector2<T>,
         v_2: &Vector2<T>,

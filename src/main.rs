@@ -14,6 +14,7 @@ const PARTICLES: u64 = 30_000; // アンサンブル平均に用いる粒子数
 const STEPS: u64 = 100_000; // シミュレーションの時間ステップ数
 const DELTA_T: Real = 0.000_1; // 時間刻み幅
 const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間
+const LENGTH: Real = 0.01; // ディパーティクルの長さ
 
 fn main() {
     let start = std::time::Instant::now();
@@ -59,7 +60,7 @@ where
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
-            let particle = Diparticle::new(&mut rng, convert(0.1));
+            let particle = Diparticle::new(&mut rng, convert(LENGTH));
 
             (0..steps)
                 .map(|_| {
@@ -79,7 +80,7 @@ where
 
     (
         displacements.iter().copied().sum::<T>() / convert(particles as Real),
-        displacements.iter().map(|&x| x * x).sum::<T>() / convert(particles as Real),
+        displacements.iter().copied().map(|x| x * x).sum::<T>() / convert(particles as Real),
     )
 }
 

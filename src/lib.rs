@@ -21,7 +21,7 @@ pub trait Particle<T: Scalar, const C: usize> {
 /// 2分探索で方程式 f(x)=0 の根を求める
 ///
 /// 引数には f(a)*f(b) < 0 を満たす a, b を与えること
-pub fn binary_search_root<F, T>(f: F, a: T, b: T) -> T
+fn binary_search_root<F, T>(f: F, a: T, b: T) -> T
 where
     F: Fn(&T) -> T,
     T: RealField + Copy,

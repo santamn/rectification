@@ -73,12 +73,11 @@ pub(crate) enum Zone {
 }
 
 impl Zone {
-    /// 点が属するゾーンを返す
     pub(crate) fn of_point<T>(range: RangeInclusive<T>, point: &Point2<T>) -> Self
     where
         T: RealField + Copy,
     {
-        if point.y > *range.end() {
+        if *range.end() < point.y {
             Zone::Above
         } else if point.y < *range.start() {
             Zone::Below
