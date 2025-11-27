@@ -174,8 +174,8 @@ where
                 // 両端がどちらも下壁に衝突する場合
                 // 両端のうちどちらが先に衝突するかを判定
                 match binary_cmp_root(
-                    |&t| (p1.y + dr_1.y * t) - omega::<Minus, T>(p1.x + dr_1.x * t), // 端1の衝突時間
-                    |&t| (p2.y + dr_2.y * t) - omega::<Minus, T>(p2.x + dr_2.x * t), // 端2の衝突時間
+                    |&t| omega::<Minus, T>(p1.x + dr_1.x * t) - (p1.y + dr_1.y * t), // 端1の衝突時間
+                    |&t| omega::<Minus, T>(p2.x + dr_2.x * t) - (p2.y + dr_2.y * t), // 端2の衝突時間
                 ) {
                     Less => {
                         // 先に端1が衝突する場合
