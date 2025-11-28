@@ -62,13 +62,14 @@ where
     StandardNormal: Distribution<T>,
 {
     let scale = convert::<_, T>(SQRT_2) * delta_t.sqrt();
-    let displacements = (0..particles)
+
+    (0..particles)
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
             let particle = Diparticle::new(&mut rng, length);
 
-            (0..steps)
+            let delta_x = (0..steps)
                 .map(|_| {
                     // 微小時間に粒子に加わる外力F + ブラウン運動
                     (
@@ -80,14 +81,18 @@ where
                     acc.apply_forces([dr_1, dr_2]);
                     acc
                 })
-                .displacement()
-        })
-        .collect::<Vec<_>>();
+                .displacement();
 
-    (
-        displacements.iter().copied().sum::<T>() / convert(particles as Real),
-        displacements.iter().map(|&x| x * x).sum::<T>() / convert(particles as Real),
-    )
+            (delta_x, delta_x * delta_x) // (変位, 二乗変位)
+        })
+        .reduce_with(|(a, aa), (x, xx)| (a + x, aa + xx))
+        .map(|(sum_x, sum_xx)| {
+            (
+                sum_x / convert(particles as f64),  // 平均変位
+                sum_xx / convert(particles as f64), // 平均二乗変位
+            )
+        })
+        .unwrap()
 }
 
 /// 正規分布に従う2次元ノイズベクトルを生成
