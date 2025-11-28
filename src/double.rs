@@ -1,7 +1,7 @@
 use crate::boundary::{
     Boundary, Minus, Plus,
     Zone::{self, *},
-    normal, omega, random_point,
+    normal, omega,
 };
 use crate::{Particle, binary_cmp_root, binary_search_root, reflect};
 use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
@@ -10,10 +10,10 @@ use std::cmp::Ordering::*;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Diparticle<T: Scalar> {
-    initial: Point2<T>,
-    current: Point2<T>,
-    length: T,
-    angle: T,
+    initial: Point2<T>, // 初期位置
+    current: Point2<T>, // 現在位置
+    length: T,          // 粒子間の長さ
+    angle: T,           // 粒子間の相対距離ベクトル(r_1 - r_2)がx軸となす偏角
 }
 
 impl<T> Particle<T, 2> for Diparticle<T>
@@ -26,8 +26,7 @@ where
     where
         R: rand::Rng,
     {
-        // FIXME: 粒子が壁にめり込まないようにする
-        let initial = random_point::<R, T>(rng);
+        let initial = random_point::<R, T>(rng, size * convert::<_, T>(0.5));
         Self {
             initial,
             current: initial,
@@ -52,21 +51,6 @@ where
         let (dr_1, dr_2) = self.edges_displacements(&dr_1, &dr_2);
         // 壁との衝突を考えない場合の、両端の変位を適用した後の位置を求める
         let (tentative_1, tentative_2) = (p1 + dr_1, p2 + dr_2);
-
-        // if let (Below, Above) | (Above, Below) = (
-        //     Zone::of_point(
-        //         omega::<Minus, T>(tentative_1.x)..=omega::<Plus, T>(tentative_1.x),
-        //         &tentative_1,
-        //     ),
-        //     Zone::of_point(
-        //         omega::<Minus, T>(tentative_2.x)..=omega::<Plus, T>(tentative_2.x),
-        //         &tentative_2,
-        //     ),
-        // ) {
-        //     dbg!(p1, p2);
-        //     dbg!(dr_1, dr_2);
-        //     dbg!(tentative_1, tentative_2);
-        // }
 
         let (dr_c, dtheta) = match (
             Zone::of_point(
@@ -357,4 +341,14 @@ where
         // 反射後の変位から実際に実現される両端の変位を求める
         self.edges_displacements(v_1, &v_2_reflected)
     }
+}
+
+fn random_point<R, T>(rng: &mut R, radius: T) -> Point2<T>
+where
+    R: rand::Rng + ?Sized,
+    T: RealField + SampleUniform + Copy,
+{
+    let x = rng.random_range(T::zero()..T::one());
+    let y = rng.random_range((omega::<Minus, T>(x) + radius)..(omega::<Plus, T>(x) - radius));
+    Point2::new(x, y)
 }

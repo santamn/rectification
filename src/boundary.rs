@@ -1,5 +1,4 @@
 use nalgebra::{Point2, RealField, Vector2, convert};
-use rand_distr::uniform::SampleUniform;
 use std::ops::RangeInclusive;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
@@ -52,17 +51,6 @@ where
     T: RealField + Copy,
 {
     Vector2::new(omega_prime::<Plus, T>(x), -B::sign::<T>()).normalize()
-}
-
-/// 0 <= x <= 1 の範囲でチャネル内のランダムな座標を生成
-pub(crate) fn random_point<R, T>(rng: &mut R) -> Point2<T>
-where
-    R: rand::Rng + ?Sized,
-    T: RealField + SampleUniform + Copy,
-{
-    let x = rng.random_range(T::zero()..T::one());
-    let y = rng.random_range(omega::<Minus, T>(x)..omega::<Plus, T>(x));
-    Point2::new(x, y)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

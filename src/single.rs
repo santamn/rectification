@@ -1,7 +1,7 @@
 use crate::boundary::{
     Minus, Plus,
     Zone::{self, *},
-    normal, omega, random_point,
+    normal, omega,
 };
 use crate::{Particle, reflect};
 use nalgebra::{Point2, RealField, Scalar, Vector2};
@@ -10,8 +10,8 @@ use rand_distr::uniform::SampleUniform;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Monoparticle<T: Scalar> {
-    initial: Point2<T>,
-    current: Point2<T>,
+    initial: Point2<T>, // 初期位置
+    current: Point2<T>, // 現在位置
 }
 
 impl<T> Particle<T, 1> for Monoparticle<T>
@@ -50,4 +50,14 @@ where
             Below => reflect(omega::<Minus, T>, normal::<Minus, T>, &self.current, &dr),
         };
     }
+}
+
+fn random_point<R, T>(rng: &mut R) -> Point2<T>
+where
+    R: rand::Rng + ?Sized,
+    T: RealField + SampleUniform + Copy,
+{
+    let x = rng.random_range(T::zero()..T::one());
+    let y = rng.random_range(omega::<Minus, T>(x)..omega::<Plus, T>(x));
+    Point2::new(x, y)
 }

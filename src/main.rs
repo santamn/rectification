@@ -27,9 +27,9 @@ fn main() {
         let f_x = i as Real;
 
         let (mean, mean_square) =
-            simulate_brownian_motion(STEPS, PARTICLES, DELTA_T, Vector2::new(f_x, 0.0));
+            simulate_brownian_motion(STEPS, PARTICLES, LENGTH, DELTA_T, Vector2::new(f_x, 0.0));
         let (mean_rev, mean_square_rev) =
-            simulate_brownian_motion(STEPS, PARTICLES, DELTA_T, Vector2::new(-f_x, 0.0));
+            simulate_brownian_motion(STEPS, PARTICLES, LENGTH, DELTA_T, Vector2::new(-f_x, 0.0));
 
         let mu = nonlinear_mobility(mean / TIME, f_x);
         let mu_rev = nonlinear_mobility(mean_rev / TIME, -f_x);
@@ -50,7 +50,13 @@ fn main() {
 }
 
 /// ブラウン運動のシミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
-fn simulate_brownian_motion<T>(steps: u64, particles: u64, delta_t: T, f: Vector2<T>) -> (T, T)
+fn simulate_brownian_motion<T>(
+    steps: u64,
+    particles: u64,
+    length: T,
+    delta_t: T,
+    f: Vector2<T>,
+) -> (T, T)
 where
     T: RealField + SampleUniform + Sum + Copy,
     StandardNormal: Distribution<T>,
@@ -60,7 +66,7 @@ where
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
-            let particle = Diparticle::new(&mut rng, convert(LENGTH));
+            let particle = Diparticle::new(&mut rng, length);
 
             (0..steps)
                 .map(|_| {
@@ -80,7 +86,7 @@ where
 
     (
         displacements.iter().copied().sum::<T>() / convert(particles as Real),
-        displacements.iter().copied().map(|x| x * x).sum::<T>() / convert(particles as Real),
+        displacements.iter().map(|&x| x * x).sum::<T>() / convert(particles as Real),
     )
 }
 
