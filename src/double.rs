@@ -270,8 +270,7 @@ where
     fn delta(&self, dr_1: &Vector2<T>, dr_2: &Vector2<T>) -> (Vector2<T>, T) {
         (
             (dr_1 + dr_2) * convert::<_, T>(0.5),
-            // FIXME: dthetaの計算を確かめる
-            (dr_1 - dr_2).dot(&self.e_theta()) / self.length, // 質点の質量を1と仮定
+            (dr_1 - dr_2).dot(&self.e_theta()) / self.length,
         )
     }
 
@@ -292,11 +291,9 @@ where
         dr_1: &Vector2<T>,
         dr_2: &Vector2<T>,
     ) -> (Vector2<T>, Vector2<T>) {
-        let e_theta = self.e_theta();
-        // FIXME: dthetaの計算を確かめる
-        let dv = e_theta * e_theta.dot(&(dr_1 - dr_2)) * convert::<_, T>(0.5);
-        let dr_c = (dr_1 + dr_2) * convert::<_, T>(0.5);
-        (dr_c + dv, dr_c - dv)
+        let e_r = self.e_r();
+        let dv = e_r * e_r.dot(&(dr_1 - dr_2)) * convert::<_, T>(0.5);
+        (dr_1 - dv, dr_2 + dv)
     }
 
     /// 端1が壁に衝突し反射するまで時間を進める
