@@ -55,6 +55,15 @@ where
         // 壁との衝突を考えない場合の、両端の変位を適用した後の位置を求める
         let (tentative_1, tentative_2) = (p1 + dr_1, p2 + dr_2);
 
+        // DEBUG: 両端の距離が粒子の長さと等しいことを確認
+        let dist = (tentative_1 - tentative_2).norm();
+        assert!(
+            dist.ulps_eq(&self.length, T::default_epsilon(), 8),
+            "edge distance norm={:?}, expected length={:?}",
+            convert::<_, T>(dist),
+            convert::<_, T>(self.length)
+        );
+
         let (dr_c, dtheta) = match (
             Zone::of_point(
                 omega::<Minus, T>(tentative_1.x)..=omega::<Plus, T>(tentative_1.x),
