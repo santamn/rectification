@@ -1,9 +1,12 @@
-use crate::boundary::{
-    Minus, Plus,
-    Zone::{self, *},
-    normal, omega,
+use crate::{
+    Particle,
+    boundary::{
+        Minus, Plus,
+        Zone::{self, *},
+        normal, omega,
+    },
+    reflect,
 };
-use crate::{Particle, reflect};
 use nalgebra::{Point2, RealField, Scalar, Vector2};
 use rand::Rng;
 use rand_distr::uniform::SampleUniform;
@@ -40,7 +43,7 @@ where
         // 壁との衝突を考慮して変位を適用
         self.current += match Zone::of_point(
             omega::<Minus, T>(tentative.x)..=omega::<Plus, T>(tentative.x),
-            &tentative,
+            &tentative.y,
         ) {
             // 上壁と衝突する場合
             Above => reflect(omega::<Plus, T>, normal::<Plus, T>, &self.current, &dr),

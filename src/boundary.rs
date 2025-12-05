@@ -1,4 +1,4 @@
-use nalgebra::{Point2, RealField, Vector2, convert};
+use nalgebra::{RealField, Vector2, convert};
 use std::ops::RangeInclusive;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
@@ -61,13 +61,13 @@ pub(crate) enum Zone {
 }
 
 impl Zone {
-    pub(crate) fn of_point<T>(range: RangeInclusive<T>, point: &Point2<T>) -> Self
+    pub(crate) fn of_point<T>(range: RangeInclusive<T>, point: &T) -> Self
     where
         T: RealField + Copy,
     {
-        if *range.end() < point.y {
+        if range.end() < point {
             Zone::Above
-        } else if point.y < *range.start() {
+        } else if point < range.start() {
             Zone::Below
         } else {
             Zone::Within

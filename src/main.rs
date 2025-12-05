@@ -11,8 +11,8 @@ use std::iter::Sum;
 type Real = f64; // 計算の精度を決める型
 
 const PARTICLES: u64 = 30_000; // アンサンブル平均に用いる粒子数
-const STEPS: u64 = 100_000; // シミュレーションの時間ステップ数
-const DELTA_T: Real = 0.000_1; // 時間刻み幅
+const STEPS: u64 = 100_000; // シミュレーションの時間ステップ数 10^5
+const DELTA_T: Real = 0.000_000_01; // 時間刻み幅 10^-8
 const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間
 const LENGTH: Real = 0.01; // ディパーティクルの長さ
 
@@ -72,13 +72,13 @@ where
             let delta_x = (0..steps)
                 .map(|_| {
                     // 微小時間に粒子に加わる外力F + ブラウン運動
-                    (
+                    [
                         f * delta_t + noise(&mut rng, scale), // 端1に加わる力
                         f * delta_t + noise(&mut rng, scale), // 端2に加わる力
-                    )
+                    ]
                 })
-                .fold(particle, |mut acc, (dr_1, dr_2)| {
-                    acc.apply_forces([dr_1, dr_2]);
+                .fold(particle, |mut acc, forces| {
+                    acc.apply_forces(forces);
                     acc
                 })
                 .displacement();
@@ -86,10 +86,10 @@ where
             (delta_x, delta_x * delta_x) // (変位, 二乗変位)
         })
         .reduce_with(|(a, aa), (x, xx)| (a + x, aa + xx))
-        .map(|(sum_x, sum_xx)| {
+        .map(|(sum, sq_sum)| {
             (
-                sum_x / convert(particles as f64),  // 平均変位
-                sum_xx / convert(particles as f64), // 平均二乗変位
+                sum / convert(particles as f64),    // 平均変位
+                sq_sum / convert(particles as f64), // 平均二乗変位
             )
         })
         .unwrap()
@@ -125,4 +125,17 @@ fn effective_diffusion(
 /// 整流尺度 α = |μ(f) - μ(-f)| / (μ(f) + μ(-f))
 fn alpha(mu: Real, mu_rev: Real) -> Real {
     (mu - mu_rev).abs() / (mu + mu_rev)
+}
+
+mod test {
+    #[test]
+    fn test_simulation() {
+        let _ = super::simulate_brownian_motion(
+            100,
+            1000,
+            0.01, // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
+            0.000_000_01,
+            nalgebra::Vector2::new(1.0, 0.0),
+        );
+    }
 }

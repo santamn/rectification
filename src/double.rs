@@ -1,9 +1,12 @@
-use crate::boundary::{
-    Boundary, Minus, Plus,
-    Zone::{self, *},
-    normal, omega,
+use crate::{
+    Particle, binary_cmp_root, binary_search_root,
+    boundary::{
+        Boundary, Minus, Plus,
+        Zone::{self, *},
+        normal, omega,
+    },
+    reflect,
 };
-use crate::{Particle, binary_cmp_root, binary_search_root, reflect};
 use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
 use rand_distr::uniform::SampleUniform;
 use std::cmp::Ordering::*;
@@ -48,18 +51,18 @@ where
         let (p1, p2) = self.edge_positions();
         // 壁との衝突を考えない場合の両端の変位を求める
         let [dr_1, dr_2] = forces;
-        let (dr_1, dr_2) = self.edges_displacements(&dr_1, &dr_2);
+        let (dr_1, dr_2) = self.constrained_edge_displacements(&dr_1, &dr_2);
         // 壁との衝突を考えない場合の、両端の変位を適用した後の位置を求める
         let (tentative_1, tentative_2) = (p1 + dr_1, p2 + dr_2);
 
         let (dr_c, dtheta) = match (
             Zone::of_point(
                 omega::<Minus, T>(tentative_1.x)..=omega::<Plus, T>(tentative_1.x),
-                &tentative_1,
+                &tentative_1.y,
             ),
             Zone::of_point(
                 omega::<Minus, T>(tentative_2.x)..=omega::<Plus, T>(tentative_2.x),
-                &tentative_2,
+                &tentative_2.y,
             ),
         ) {
             (Above, Above) => {
@@ -270,7 +273,7 @@ where
 
     /// 両端の仮想的な変位から、実現可能な両端の変位を求める
     #[inline]
-    fn edges_displacements(
+    fn constrained_edge_displacements(
         &self,
         dr_1: &Vector2<T>,
         dr_2: &Vector2<T>,
@@ -308,7 +311,7 @@ where
         let v_1_reflected = v_rest - n * n.dot(&v_rest) * convert::<_, T>(2.0);
 
         // 反射後の変位から実際に実現される両端の変位を求める
-        self.edges_displacements(&v_1_reflected, v_2)
+        self.constrained_edge_displacements(&v_1_reflected, &(v_2 * (T::one() - t)))
     }
 
     // 端2が壁に衝突し反射するまで時間を進める
@@ -339,7 +342,7 @@ where
         let v_2_reflected = v_rest - n * n.dot(&v_rest) * convert::<_, T>(2.0);
 
         // 反射後の変位から実際に実現される両端の変位を求める
-        self.edges_displacements(v_1, &v_2_reflected)
+        self.constrained_edge_displacements(&(v_1 * (T::one() - t)), &v_2_reflected)
     }
 }
 
