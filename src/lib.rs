@@ -4,6 +4,7 @@ use std::cmp::Ordering::{self, *};
 use std::ops::ControlFlow::*;
 
 pub mod boundary;
+pub mod displacement;
 pub mod double;
 pub mod single;
 

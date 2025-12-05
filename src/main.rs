@@ -131,10 +131,10 @@ mod test {
     #[test]
     fn test_simulation() {
         let _ = super::simulate_brownian_motion(
-            100,
+            10_000,
             1000,
             0.01, // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
-            0.000_000_01,
+            0.000_1,
             nalgebra::Vector2::new(1.0, 0.0),
         );
     }
