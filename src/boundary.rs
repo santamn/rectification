@@ -1,76 +1,69 @@
-use nalgebra::{RealField, Vector2, convert};
-use std::ops::RangeInclusive;
+use nalgebra::{Point2, RealField, Scalar, Unit, Vector2, convert};
+use std::marker::PhantomData;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
-pub(crate) struct Plus; // y = ω(x)
-pub(crate) struct Minus; // y = -ω(x)
+pub(crate) struct Top<T>(PhantomData<T>); // y = ω(x)
+pub(crate) struct Bottom<T>(PhantomData<T>); // y = -ω(x)
 
-pub(crate) trait Boundary {
-    /// 境界 y = ±ω(x) の符号を表す
-    fn sign<T: RealField>() -> T;
+pub(crate) trait Boundary<T: Scalar> {
+    /// 境界の関数
+    fn f(x: &T) -> T;
+    /// (x, ±ω(x)) においてベクトル v を反射させたものを返す
+    fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T>;
+    /// 点が境界の外側にあるかどうかを判定する
+    fn is_outside(p: &Point2<T>) -> bool;
 }
 
-impl Boundary for Plus {
+impl<T: RealField + Copy> Boundary<T> for Top<T> {
     #[inline]
-    fn sign<T: RealField>() -> T {
-        T::one()
+    fn f(x: &T) -> T {
+        omega(x)
+    }
+
+    #[inline]
+    fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
+        let n = Unit::new_normalize(Vector2::new(omega_prime(x), -T::one()));
+        v - n.as_ref() * convert::<_, T>(2.0) * n.as_ref().dot(v)
+    }
+
+    #[inline]
+    fn is_outside(p: &Point2<T>) -> bool {
+        p.y > omega(&p.x)
     }
 }
 
-impl Boundary for Minus {
+impl<T: RealField + Copy> Boundary<T> for Bottom<T> {
     #[inline]
-    fn sign<T: RealField>() -> T {
-        -T::one()
+    fn f(x: &T) -> T {
+        -omega(x)
+    }
+
+    #[inline]
+    fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
+        let n = Unit::new_normalize(Vector2::new(-omega_prime(x), T::one()));
+        v - n.as_ref() * convert::<_, T>(2.0) * n.as_ref().dot(v)
+    }
+
+    #[inline]
+    fn is_outside(p: &Point2<T>) -> bool {
+        p.y < -omega(&p.x)
     }
 }
 
-/// チャネル境界 ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12
-pub(crate) fn omega<B, T>(x: T) -> T
+/// ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12
+fn omega<T>(x: &T) -> T
 where
-    B: Boundary,
     T: RealField + Copy,
 {
-    let (s, c) = (T::two_pi() * x).sin_cos();
-    B::sign::<T>() * (s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12))
+    let (s, c) = (T::two_pi() * *x).sin_cos();
+    s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
 }
 
 /// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx)
-fn omega_prime<B, T>(x: T) -> T
+fn omega_prime<T>(x: &T) -> T
 where
-    B: Boundary,
     T: RealField + Copy,
 {
-    let c = (T::two_pi() * x).cos();
-    B::sign::<T>() * (T::two_pi() * c * (c + T::one()) - T::pi())
-}
-
-/// チャネル境界における内側への単位法線ベクトル
-pub(crate) fn normal<B, T>(x: T) -> Vector2<T>
-where
-    B: Boundary,
-    T: RealField + Copy,
-{
-    Vector2::new(omega_prime::<Plus, T>(x), -B::sign::<T>()).normalize()
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Zone {
-    Above,  // 上部外側
-    Within, // 内部
-    Below,  // 下部外側
-}
-
-impl Zone {
-    pub(crate) fn of_point<T>(range: RangeInclusive<T>, point: &T) -> Self
-    where
-        T: RealField + Copy,
-    {
-        if range.end() < point {
-            Zone::Above
-        } else if point < range.start() {
-            Zone::Below
-        } else {
-            Zone::Within
-        }
-    }
+    let c = (T::two_pi() * *x).cos();
+    T::two_pi() * c * (c + T::one()) - T::pi()
 }

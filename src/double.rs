@@ -1,11 +1,8 @@
 use crate::{
-    Particle, binary_cmp_root, binary_search_root,
-    boundary::{
-        Boundary, Minus, Plus,
-        Zone::{self, *},
-        normal, omega,
-    },
-    reflect,
+    Particle, RangeExt,
+    RelativePos::*,
+    binary_cmp_root, binary_search_root,
+    boundary::{Bottom, Boundary, Top},
 };
 use nalgebra::{Point2, RealField, Scalar, Unit, Vector2, convert};
 use rand_distr::uniform::SampleUniform;
@@ -20,7 +17,7 @@ pub struct Diparticle<T: Scalar> {
     initial: Point2<T>, // 初期位置
     current: Point2<T>, // 現在位置
     length: T,          // 粒子間の長さ
-    angle: T,           // 粒子間の相対距離ベクトル(r_1 - r_2)がx軸となす偏角
+    angle: T,           // 棒がx軸となす偏角
 }
 
 impl<T> Particle<T, 2> for Diparticle<T>
@@ -55,198 +52,218 @@ where
         let (p1, p2) = self.edge_positions();
         // 壁との衝突を考えない場合の、両端の変位を求める
         let [dr_1, dr_2] = forces;
-        let bound_edge_displacements = self.constrained_edge_displacements(&dr_1, &dr_2);
+        let bound_edge_displacements = self.constrain_edge_displacements(&dr_1, &dr_2);
         let (dr_1, dr_2) = bound_edge_displacements.into_inner();
         // 壁との衝突を考えない場合の、両端の変位を適用した後の位置を求める
         let (tentative_1, tentative_2) = (p1 + dr_1, p2 + dr_2);
 
-        // DEBUG: 両端の距離が粒子の長さと等しいことを確認
-        // let dist = (tentative_1 - tentative_2).norm();
-        // assert!(
-        //     dist.ulps_eq(&self.length, T::default_epsilon(), 8),
-        //     "edge distance norm={:?}, expected length={:?}",
-        //     convert::<_, T>(dist),
-        //     convert::<_, T>(self.length)
-        // );
-
         match (
-            Zone::of_point(
-                omega::<Minus, T>(tentative_1.x)..=omega::<Plus, T>(tentative_1.x),
-                &tentative_1.y,
-            ),
-            Zone::of_point(
-                omega::<Minus, T>(tentative_2.x)..=omega::<Plus, T>(tentative_2.x),
-                &tentative_2.y,
-            ),
+            (Bottom::<T>::f(&tentative_1.x)..=Top::<T>::f(&tentative_1.x))
+                .position_of(&tentative_1.y),
+            (Bottom::<T>::f(&tentative_2.x)..=Top::<T>::f(&tentative_2.x))
+                .position_of(&tentative_2.y),
         ) {
+            // 両端がどちらも上壁に衝突する場合
             (Above, Above) => {
-                // 両端がどちらも上壁に衝突する場合
                 // 両端のうちどちらが先に衝突するかを判定
                 match binary_cmp_root(
-                    |&t| omega::<Plus, T>(p1.x + dr_1.x * t) - (p1.y + dr_1.y * t), // 端1の衝突時間
-                    |&t| omega::<Plus, T>(p2.x + dr_2.x * t) - (p2.y + dr_2.y * t), // 端2の衝突時間
+                    |&t| Top::<T>::f(&(p1.x + dr_1.x * t)) - (p1.y + dr_1.y * t), // 端1の衝突時間
+                    |&t| Top::<T>::f(&(p2.x + dr_2.x * t)) - (p2.y + dr_2.y * t), // 端2の衝突時間
                 ) {
+                    // 先に端1が衝突する場合
                     Less => {
-                        // 先に端1が衝突する場合
-
                         // まず端1が衝突するまでの変位を適用する
-                        let bound_edge_displacements =
-                            self.advance_to_edge1_collision::<Plus>(&bound_edge_displacements);
+                        let disps_after_e1_collided =
+                            self.advance_to_edge1_collision::<Top<T>>(&bound_edge_displacements);
 
-                        // 続いて端2が衝突するかどうかを判定
+                        // 端2の衝突を処理
                         let (_, p2) = self.edge_positions();
-                        self.move_particle(&if omega::<Plus, T>(p2.x + dr_2.x) < p2.y + dr_2.y {
+                        let (_, dr_2) = disps_after_e1_collided.into_inner();
+                        let disps = if Top::<T>::is_outside(&(p2 + dr_2)) {
                             // 端2も衝突する場合
-                            self.advance_to_edge2_collision::<Plus>(&bound_edge_displacements)
+                            self.advance_to_edge2_collision::<Top<T>>(&disps_after_e1_collided)
                         } else {
                             // 端2は衝突しない場合
-                            bound_edge_displacements
-                        })
+                            disps_after_e1_collided
+                        };
+                        self.move_particle(&disps);
                     }
+                    // 両端が同時に衝突する場合
                     Equal => {
-                        // 両端が同時に衝突する場合
                         // 棒の制約を無視して両端がそれぞれ独立に反射する場合の変位を計算し、結果の変位を適用する
-                        self.move_particle(&self.constrained_edge_displacements(
-                            &reflect(omega::<Plus, T>, normal::<Plus, T>, &p1, &dr_1),
-                            &reflect(omega::<Plus, T>, normal::<Plus, T>, &p2, &dr_2),
-                        ))
+                        let time_to_hit = binary_search_root(
+                            |&t| Top::<T>::f(&(p1.x + dr_1.x * t)) - (p1.y + dr_1.y * t),
+                            &T::zero(),
+                            &T::one(),
+                        );
+
+                        self.move_particle(&self.constrain_edge_displacements(
+                            &Top::<T>::reflect_at(
+                                &(p1 + dr_1 * time_to_hit).x,
+                                &(dr_1 * (T::one() - time_to_hit)),
+                            ),
+                            &Top::<T>::reflect_at(
+                                &(p2 + dr_2 * time_to_hit).x,
+                                &(dr_2 * (T::one() - time_to_hit)),
+                            ),
+                        ));
                     }
+                    // 先に端2が衝突する場合
                     Greater => {
-                        // 先に端2が衝突する場合
-
                         // まず端2が衝突するまでの変位を適用する
-                        let bound_edge_displacements =
-                            self.advance_to_edge2_collision::<Plus>(&bound_edge_displacements);
+                        let disps_after_e2_collided =
+                            self.advance_to_edge2_collision::<Top<T>>(&bound_edge_displacements);
 
-                        // 続いて端1が衝突するかどうかを判定
+                        // 端1の衝突を処理
                         let (p1, _) = self.edge_positions();
-                        self.move_particle(&if omega::<Plus, T>(p1.x + dr_1.x) < p1.y + dr_1.y {
+                        let (dr_1, _) = disps_after_e2_collided.into_inner();
+                        let disps = if Top::<T>::is_outside(&(p1 + dr_1)) {
                             // 端1も衝突する場合
-                            self.advance_to_edge1_collision::<Plus>(&bound_edge_displacements)
+                            self.advance_to_edge1_collision::<Top<T>>(&disps_after_e2_collided)
                         } else {
                             // 端1は衝突しない場合
-                            bound_edge_displacements
-                        });
+                            disps_after_e2_collided
+                        };
+                        self.move_particle(&disps);
                     }
                 }
             }
+            // 端1が上壁に衝突する場合
             (Above, Within) => {
-                // 端1が上壁に衝突する場合
-
                 // まず端1が衝突するまでの変位を適用する
-                let bound_edge_displacements =
-                    self.advance_to_edge1_collision::<Plus>(&bound_edge_displacements);
+                let disps_after_e1_collided =
+                    self.advance_to_edge1_collision::<Top<T>>(&bound_edge_displacements);
 
-                // 続いて端2が衝突するかどうかを判定
+                // 端2の衝突を処理
                 let (_, p2) = self.edge_positions();
-                self.move_particle(&if omega::<Plus, T>(p2.x + dr_2.x) < p2.y + dr_2.y {
+                let (_, dr_2) = disps_after_e1_collided.into_inner();
+                let disps = if Top::<T>::is_outside(&(p2 + dr_2)) {
                     // 端2も衝突する場合
-                    self.advance_to_edge2_collision::<Plus>(&bound_edge_displacements)
+                    self.advance_to_edge2_collision::<Top<T>>(&disps_after_e1_collided)
                 } else {
                     // 端2は衝突しない場合
-                    bound_edge_displacements
-                });
+                    disps_after_e1_collided
+                };
+                self.move_particle(&disps);
             }
+            // 端2が上壁に衝突する場合
             (Within, Above) => {
-                // 端2が上壁に衝突する場合
-
                 // まず端2が衝突するまでの変位を適用する
-                let bound_edge_displacements =
-                    self.advance_to_edge2_collision::<Plus>(&bound_edge_displacements);
+                let disps_after_e2_collided =
+                    self.advance_to_edge2_collision::<Top<T>>(&bound_edge_displacements);
 
-                // 続いて端1が衝突するかどうかを判定
+                // 端1の衝突を処理
                 let (p1, _) = self.edge_positions();
-                self.move_particle(&if omega::<Plus, T>(p1.x + dr_1.x) < p1.y + dr_1.y {
+                let (dr_1, _) = disps_after_e2_collided.into_inner();
+                let disps = if Top::<T>::is_outside(&(p1 + dr_1)) {
                     // 端1も衝突する場合
-                    self.advance_to_edge1_collision::<Plus>(&bound_edge_displacements)
+                    self.advance_to_edge1_collision::<Top<T>>(&disps_after_e2_collided)
                 } else {
                     // 端1は衝突しない場合
-                    bound_edge_displacements
-                });
+                    disps_after_e2_collided
+                };
+                self.move_particle(&disps);
             }
-            (Within, Within) => self.move_particle(&bound_edge_displacements), // 両端とも壁に衝突しない場合
+            // 両端とも壁に衝突しない場合
+            (Within, Within) => self.move_particle(&bound_edge_displacements),
+            // 端1が下壁に衝突する場合
             (Below, Within) => {
-                // 端1が下壁に衝突する場合
-
                 // まず端1が衝突するまでの変位を適用する
-                let bound_edge_displacements =
-                    self.advance_to_edge1_collision::<Minus>(&bound_edge_displacements);
+                let disps_after_e1_collided =
+                    self.advance_to_edge1_collision::<Bottom<T>>(&bound_edge_displacements);
 
-                // 続いて端2が衝突するかどうかを判定
+                // 端2の衝突を処理
                 let (_, p2) = self.edge_positions();
-                self.move_particle(&if p2.y + dr_2.y < omega::<Minus, T>(p2.x + dr_2.x) {
+                let (_, dr_2) = disps_after_e1_collided.into_inner();
+                let disps = if Bottom::<T>::is_outside(&(p2 + dr_2)) {
                     // 端2も衝突する場合
-                    self.advance_to_edge2_collision::<Minus>(&bound_edge_displacements)
+                    self.advance_to_edge2_collision::<Bottom<T>>(&disps_after_e1_collided)
                 } else {
                     // 端2は衝突しない場合
-                    bound_edge_displacements
-                });
+                    disps_after_e1_collided
+                };
+                self.move_particle(&disps);
             }
+            // 端2が下壁に衝突する場合
             (Within, Below) => {
-                // 端2が下壁に衝突する場合
-
                 // まず端2が衝突するまでの変位を適用する
-                let bound_edge_displacements =
-                    self.advance_to_edge2_collision::<Minus>(&bound_edge_displacements);
+                let disps_after_e2_collided =
+                    self.advance_to_edge2_collision::<Bottom<T>>(&bound_edge_displacements);
 
-                // 続いて端1が衝突するかどうかを判定
+                // 端1の衝突を処理
                 let (p1, _) = self.edge_positions();
-                self.move_particle(&if p1.y + dr_1.y < omega::<Minus, T>(p1.x + dr_1.x) {
+                let (dr_1, _) = disps_after_e2_collided.into_inner();
+                let disps = if Bottom::<T>::is_outside(&(p1 + dr_1)) {
                     // 端1も衝突する場合
-                    self.advance_to_edge1_collision::<Minus>(&bound_edge_displacements)
+                    self.advance_to_edge1_collision::<Bottom<T>>(&disps_after_e2_collided)
                 } else {
                     // 端1は衝突しない場合
-                    bound_edge_displacements
-                });
+                    disps_after_e2_collided
+                };
+                self.move_particle(&disps);
             }
+            // 両端がどちらも下壁に衝突する場合
             (Below, Below) => {
-                // 両端がどちらも下壁に衝突する場合
                 // 両端のうちどちらが先に衝突するかを判定
                 match binary_cmp_root(
-                    |&t| omega::<Minus, T>(p1.x + dr_1.x * t) - (p1.y + dr_1.y * t), // 端1の衝突時間
-                    |&t| omega::<Minus, T>(p2.x + dr_2.x * t) - (p2.y + dr_2.y * t), // 端2の衝突時間
+                    |&t| Bottom::<T>::f(&(p1.x + dr_1.x * t)) - (p1.y + dr_1.y * t), // 端1の衝突時間
+                    |&t| Bottom::<T>::f(&(p2.x + dr_2.x * t)) - (p2.y + dr_2.y * t), // 端2の衝突時間
                 ) {
+                    // 先に端1が衝突する場合
                     Less => {
-                        // 先に端1が衝突する場合
-
                         // まず端1が衝突するまでの変位を適用する
-                        let bound_edge_displacements =
-                            self.advance_to_edge1_collision::<Minus>(&bound_edge_displacements);
+                        let disps_after_e1_collided =
+                            self.advance_to_edge1_collision::<Bottom<T>>(&bound_edge_displacements);
 
-                        // 続いて端2が衝突するかどうかを判定
+                        // 端2の衝突を処理
                         let (_, p2) = self.edge_positions();
-                        self.move_particle(&if p2.y + dr_2.y < omega::<Minus, T>(p2.x + dr_2.x) {
+                        let (_, dr_2) = disps_after_e1_collided.into_inner();
+                        let disps = if Bottom::<T>::is_outside(&(p2 + dr_2)) {
                             // 端2も衝突する場合
-                            self.advance_to_edge2_collision::<Minus>(&bound_edge_displacements)
+                            self.advance_to_edge2_collision::<Bottom<T>>(&disps_after_e1_collided)
                         } else {
                             // 端2は衝突しない場合
-                            bound_edge_displacements
-                        })
+                            disps_after_e1_collided
+                        };
+                        self.move_particle(&disps);
                     }
+                    // 両端が同時に衝突する場合
                     Equal => {
-                        // 両端が同時に衝突する場合
                         // 棒の制約を無視して両端がそれぞれ独立に反射する場合の変位を計算し、結果の変位を適用する
-                        self.move_particle(&self.constrained_edge_displacements(
-                            &reflect(omega::<Minus, T>, normal::<Minus, T>, &p1, &dr_1),
-                            &reflect(omega::<Minus, T>, normal::<Minus, T>, &p2, &dr_2),
+                        let time_to_hit = binary_search_root(
+                            |&t| Bottom::<T>::f(&(p1.x + dr_1.x * t)) - (p1.y + dr_1.y * t),
+                            &T::zero(),
+                            &T::one(),
+                        );
+
+                        self.move_particle(&self.constrain_edge_displacements(
+                            &Bottom::<T>::reflect_at(
+                                &(p1 + dr_1 * time_to_hit).x,
+                                &(dr_1 * (T::one() - time_to_hit)),
+                            ),
+                            &Bottom::<T>::reflect_at(
+                                &(p2 + dr_2 * time_to_hit).x,
+                                &(dr_2 * (T::one() - time_to_hit)),
+                            ),
                         ));
                     }
+                    // 先に端2が衝突する場合
                     Greater => {
-                        // 先に端2が衝突する場合
-
                         // まず端2が衝突するまでの変位を適用する
-                        let bound_edge_displacements =
-                            self.advance_to_edge2_collision::<Minus>(&bound_edge_displacements);
+                        let disps_after_e2_collided =
+                            self.advance_to_edge2_collision::<Bottom<T>>(&bound_edge_displacements);
 
-                        // 続いて端1が衝突するかどうかを判定
+                        // 端1の衝突を処理
                         let (p1, _) = self.edge_positions();
-                        self.move_particle(&if p1.y + dr_1.y < omega::<Minus, T>(p1.x + dr_1.x) {
+                        let (dr_1, _) = disps_after_e2_collided.into_inner();
+                        let disps = if Bottom::<T>::is_outside(&(p1 + dr_1)) {
                             // 端1も衝突する場合
-                            self.advance_to_edge1_collision::<Minus>(&bound_edge_displacements)
+                            self.advance_to_edge1_collision::<Bottom<T>>(&disps_after_e2_collided)
                         } else {
                             // 端1は衝突しない場合
-                            bound_edge_displacements
-                        });
+                            disps_after_e2_collided
+                        };
+                        self.move_particle(&disps);
                     }
                 }
             }
@@ -268,13 +285,6 @@ where
         Unit::new_unchecked(Vector2::new(c, s))
     }
 
-    /// 粒子の偏角方向についての単位ベクトル
-    #[inline]
-    fn e_theta(&self) -> Unit<Vector2<T>> {
-        let (s, c) = self.angle.sin_cos();
-        Unit::new_unchecked(Vector2::new(-s, c))
-    }
-
     /// 粒子の重心位置と偏角の差分を適用する
     #[inline]
     fn move_particle(&mut self, edge_displacements: &ConstrainedEdgeDisplacements<T>) {
@@ -293,11 +303,9 @@ where
         )
     }
 
-    /// 両端の仮想的な変位から、実現可能な両端の変位を求める
-    ///
-    /// 棒の長さが変化しないような制約を課す
+    /// 両端の変位について棒の長さが変化しないような制約を課す
     #[inline]
-    fn constrained_edge_displacements(
+    fn constrain_edge_displacements(
         &self,
         dr_1: &Vector2<T>,
         dr_2: &Vector2<T>,
@@ -311,28 +319,28 @@ where
         edge_displacements: &ConstrainedEdgeDisplacements<T>,
     ) -> ConstrainedEdgeDisplacements<T>
     where
-        B: Boundary,
+        B: Boundary<T>,
     {
         // 端1が衝突するまでの時間を求める
         let (p1, _) = self.edge_positions();
-        let (v_1, v_2) = edge_displacements.into_inner();
-        let t = binary_search_root(
-            |&t| omega::<B, T>(p1.x + v_1.x * t) - (p1.y + v_1.y * t),
-            T::zero(),
-            T::one(),
+        let (v_1, _) = edge_displacements.into_inner();
+        let time_to_hit = binary_search_root(
+            |&t| B::f(&(p1.x + v_1.x * t)) - (p1.y + v_1.y * t),
+            &T::zero(),
+            &T::one(),
         );
 
         // 端1が衝突するまでの変位を適用
-        self.move_particle(&(edge_displacements * t));
-
-        // 端1の残りの移動ベクトルを反射させる
-        let v1_rest = v_1 * (T::one() - t);
-        let v2_rest = v_2 * (T::one() - t);
-        let n = normal::<B, T>(p1.x + v_1.x * t); // 衝突点における法線ベクトル
-        let v_1_reflected = v1_rest - n * n.dot(&v1_rest) * convert::<_, T>(2.0);
+        let partial_displacement = edge_displacements * time_to_hit;
+        self.move_particle(&partial_displacement);
 
         // 端1の反射後の変位から、棒の両端の変位を求める
-        self.constrained_edge_displacements(&v_1_reflected, &v2_rest)
+        let (to_channel, _) = partial_displacement.into_inner();
+        let (v_1_rest, v_2_rest) = (*edge_displacements - partial_displacement).into_inner();
+        self.constrain_edge_displacements(
+            &B::reflect_at(&(p1 + to_channel).x, &v_1_rest),
+            &v_2_rest,
+        )
     }
 
     // 端2が壁に衝突し反射するまで時間を進める
@@ -341,28 +349,28 @@ where
         edge_displacements: &ConstrainedEdgeDisplacements<T>,
     ) -> ConstrainedEdgeDisplacements<T>
     where
-        B: Boundary,
+        B: Boundary<T>,
     {
         // 端2が衝突するまでの時間を求める
         let (_, p2) = self.edge_positions();
-        let (v_1, v_2) = edge_displacements.into_inner();
-        let t = binary_search_root(
-            |&t| omega::<B, T>(p2.x + v_2.x * t) - (p2.y + v_2.y * t),
-            T::zero(),
-            T::one(),
+        let (_, v_2) = edge_displacements.into_inner();
+        let time_to_hit = binary_search_root(
+            |&t| B::f(&(p2.x + v_2.x * t)) - (p2.y + v_2.y * t),
+            &T::zero(),
+            &T::one(),
         );
 
         // 端2が衝突するまでの変位を適用
-        self.move_particle(&(edge_displacements * t));
+        let partial_displacement = edge_displacements * time_to_hit;
+        self.move_particle(&partial_displacement);
 
         // 端2の移動ベクトルを反射させる
-        let v1_rest = v_1 * (T::one() - t);
-        let v2_rest = v_2 * (T::one() - t);
-        let n = normal::<B, T>(p2.x + v_2.x * t); // 衝突点における法線ベクトル
-        let v_2_reflected = v2_rest - n * n.dot(&v2_rest) * convert::<_, T>(2.0);
-
-        // 端2の反射後の変位から、棒の両端の変位を求める
-        self.constrained_edge_displacements(&v1_rest, &v_2_reflected)
+        let (_, to_channel) = partial_displacement.into_inner();
+        let (v_1_rest, v_2_rest) = (*edge_displacements - partial_displacement).into_inner();
+        self.constrain_edge_displacements(
+            &v_1_rest,
+            &(to_channel + B::reflect_at(&(p2 + to_channel).x, &v_2_rest)),
+        )
     }
 }
 
@@ -372,6 +380,6 @@ where
     T: RealField + SampleUniform + Copy,
 {
     let x = rng.random_range(T::zero()..T::one());
-    let y = rng.random_range((omega::<Minus, T>(x) + radius)..(omega::<Plus, T>(x) - radius));
+    let y = rng.random_range((Bottom::<T>::f(&x) + radius)..(Top::<T>::f(&x) - radius));
     Point2::new(x, y)
 }

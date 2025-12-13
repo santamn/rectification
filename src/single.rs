@@ -1,11 +1,8 @@
 use crate::{
-    Particle,
-    boundary::{
-        Minus, Plus,
-        Zone::{self, *},
-        normal, omega,
-    },
-    reflect,
+    Particle, RangeExt,
+    RelativePos::*,
+    binary_search_root,
+    boundary::{Bottom, Boundary, Top},
 };
 use nalgebra::{Point2, RealField, Scalar, Vector2};
 use rand::Rng;
@@ -41,16 +38,23 @@ where
         let tentative = self.current + dr;
 
         // 壁との衝突を考慮して変位を適用
-        self.current += match Zone::of_point(
-            omega::<Minus, T>(tentative.x)..=omega::<Plus, T>(tentative.x),
-            &tentative.y,
-        ) {
+        self.current += match (Bottom::<T>::f(&tentative.x)..=Top::<T>::f(&tentative.x))
+            .position_of(&tentative.y)
+        {
             // 上壁と衝突する場合
-            Above => reflect(omega::<Plus, T>, normal::<Plus, T>, &self.current, &dr),
+            Above => {
+                let collision_x = binary_search_root(Top::<T>::f, &self.current.x, &tentative.x);
+                let to_channel = tentative - Point2::new(collision_x, Top::<T>::f(&collision_x));
+                to_channel + Top::<T>::reflect_at(&collision_x, &(dr - to_channel))
+            }
             // 境界内の場合
             Within => dr,
             // 下壁と衝突する場合
-            Below => reflect(omega::<Minus, T>, normal::<Minus, T>, &self.current, &dr),
+            Below => {
+                let collision_x = binary_search_root(Bottom::<T>::f, &self.current.x, &tentative.x);
+                let to_channel = tentative - Point2::new(collision_x, Bottom::<T>::f(&collision_x));
+                to_channel + Bottom::<T>::reflect_at(&collision_x, &(dr - to_channel))
+            }
         };
     }
 }
@@ -61,6 +65,6 @@ where
     T: RealField + SampleUniform + Copy,
 {
     let x = rng.random_range(T::zero()..T::one());
-    let y = rng.random_range(omega::<Minus, T>(x)..omega::<Plus, T>(x));
+    let y = rng.random_range(Bottom::<T>::f(&x)..Top::<T>::f(&x));
     Point2::new(x, y)
 }

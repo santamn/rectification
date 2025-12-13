@@ -1,5 +1,5 @@
 use nalgebra::{RealField, Unit, Vector2, convert};
-use std::ops::Mul;
+use std::ops::{Mul, Sub};
 
 pub(super) trait EdgeDisplacements<T> {
     fn constrain_along(&self, e_r: &Unit<Vector2<T>>) -> ConstrainedEdgeDisplacements<T>;
@@ -29,6 +29,17 @@ where
     #[inline]
     pub(super) fn into_inner(self) -> (Vector2<T>, Vector2<T>) {
         (self.0, self.1)
+    }
+}
+
+impl<T> Sub for ConstrainedEdgeDisplacements<T>
+where
+    T: RealField + Copy,
+{
+    type Output = ConstrainedEdgeDisplacements<T>;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        ConstrainedEdgeDisplacements(self.0 - rhs.0, self.1 - rhs.1)
     }
 }
 
