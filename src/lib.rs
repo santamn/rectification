@@ -1,17 +1,16 @@
-use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
+use nalgebra::{Point2, RealField, Vector2, convert};
 use rand::Rng;
 use std::cmp::Ordering::{self, *};
 use std::ops::ControlFlow::*;
 
 pub mod boundary;
-pub mod displacement;
 pub mod double;
 pub mod single;
 
 pub use double::Diparticle;
 pub use single::Monoparticle;
 
-pub trait Particle<T: Scalar, const C: usize> {
+pub trait Particle<T, const C: usize> {
     type Size;
 
     fn new<R: Rng>(rng: &mut R, size: Self::Size) -> Self;

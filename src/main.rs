@@ -1,5 +1,5 @@
 use nalgebra::{RealField, Vector2, convert};
-use rand::{SeedableRng, rngs::SmallRng};
+use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
 use rectification::{Diparticle, Particle};
@@ -10,11 +10,11 @@ use std::iter::Sum;
 
 type Real = f64; // 計算の精度を決める型
 
-const PARTICLES: u64 = 30_000; // アンサンブル平均に用いる粒子数
-const STEPS: u64 = 100_000; // シミュレーションの時間ステップ数 10^5
-const DELTA_T: Real = 0.000_000_01; // 時間刻み幅 10^-8
-const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間
-const LENGTH: Real = 0.01; // ディパーティクルの長さ
+const PARTICLES: u64 = 30_000; //              アンサンブル平均に用いる粒子数  3×10^4
+const STEPS: u64 = 1_000_000_000; //           シミュレーションの時間ステップ数  10^9
+const DELTA_T: Real = 1e-8; //                 時間刻み幅                 10^-8　: √δt = 0.0001 
+const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間         10
+const LENGTH: Real = 0.01; //                  ディパーティクルの長さ         0.01
 
 fn main() {
     let start = std::time::Instant::now();
@@ -99,7 +99,7 @@ where
 fn noise<T, R>(rng: &mut R, scale: T) -> Vector2<T>
 where
     T: RealField + SampleUniform,
-    R: rand::Rng + ?Sized,
+    R: Rng + ?Sized,
     StandardNormal: Distribution<T>,
 {
     Vector2::new(
