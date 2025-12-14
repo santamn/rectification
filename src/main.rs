@@ -11,49 +11,38 @@ type Real = f64; // 計算の精度を決める型
 
 const PARTICLES: u64 = 30_000; //               アンサンブル平均に用いる粒子数  3×10^4
 const STEPS: usize = 100_000; //                シミュレーションの時間ステップ数  10^5
-const DELTA_T: Real = 0.000_1; //               時間刻み幅
+const DELTA_T: Real = 0.000_1; //               時間刻み幅                 0.0001
 const TIME: Real = STEPS as Real * DELTA_T; //  総シミュレーション時間         10
-// const LENGTH: Real = 0.01; //                    ディパーティクルの長さ         0.01
+// const LENGTH: Real = 0.01; //                    ディパーティクルの長さ     0.01
 // const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
 
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/mu_mono_150.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/d_eff_mono_150.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/alpha_mono_150.dat").unwrap());
+    let mut mu_writer = BufWriter::new(File::create("data/mono/mu_150_x10.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/mono/d_eff_150_x10.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/mono/alpha_150_x10.dat").unwrap());
 
     for i in 0..=150 {
-        let f_x = i as Real;
+        let f = Vector2::new(i as Real, 0.0);
 
-        let (mean, mean_square) = simulate_brownian_motion::<Monoparticle<_>, _, _>(
-            STEPS,
-            PARTICLES,
-            (),
-            DELTA_T,
-            Vector2::new(f_x, 0.0),
-        );
-        let (mean_rev, mean_square_rev) = simulate_brownian_motion::<Monoparticle<_>, _, _>(
-            STEPS,
-            PARTICLES,
-            (),
-            DELTA_T,
-            Vector2::new(-f_x, 0.0),
-        );
+        let (mean, mean_square) =
+            simulate_brownian_motion::<Monoparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, f, ());
+        let (mean_rev, mean_square_rev) =
+            simulate_brownian_motion::<Monoparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, -f, ());
 
-        let mu = nonlinear_mobility(mean / TIME, f_x);
-        let mu_rev = nonlinear_mobility(mean_rev / TIME, -f_x);
-
-        writeln!(mu_writer, "{} {} {}", f_x, mu, mu_rev).unwrap();
+        let mu = nonlinear_mobility(mean / TIME, f.x);
+        let mu_rev = nonlinear_mobility(mean_rev / TIME, -f.x);
+        writeln!(mu_writer, "{} {} {}", f.x, mu, mu_rev).unwrap();
         writeln!(
             d_writer,
             "{} {} {}",
-            f_x,
+            f.x,
             effective_diffusion(mean, mean_square, TIME),
             effective_diffusion(mean_rev, mean_square_rev, TIME)
         )
         .unwrap();
-        writeln!(alpha_writer, "{} {}", f_x, alpha(mu, mu_rev)).unwrap();
+        writeln!(alpha_writer, "{} {}", f.x, alpha(mu, mu_rev)).unwrap();
     }
 
     println!("Elapsed: {:.2?}", start.elapsed());
@@ -64,9 +53,9 @@ fn main() {
 fn simulate_brownian_motion<P, T, const C: usize>(
     steps: usize,
     particles: u64,
-    length: P::Size,
     delta_t: T,
     f: Vector2<T>,
+    length: P::Size,
 ) -> (T, T)
 where
     P: Particle<T, C>,
@@ -145,9 +134,9 @@ mod test {
         super::simulate_brownian_motion::<Diparticle<_>, _, _>(
             10_000_000, // 10^7
             30_000,     // 3×10^4
-            0.01,       // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
             1e-8,
             nalgebra::Vector2::new(1.0, 0.0),
+            0.01, // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
         );
         // 実行時間: 10^11 [step*pariticles] -> 6810秒 (約1.9時間)
     }
