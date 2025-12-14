@@ -6,9 +6,9 @@ pub(crate) struct Top<T>(PhantomData<T>); // y = ω(x)
 pub(crate) struct Bottom<T>(PhantomData<T>); // y = -ω(x)
 
 pub(crate) trait Boundary<T: Scalar> {
-    /// 境界の関数
+    /// 境界の形状を表す関数
     fn f(x: &T) -> T;
-    /// (x, ±ω(x)) においてベクトル v を反射させたものを返す
+    /// (x, ±f(x)) においてベクトル v を反射させたものを返す
     fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T>;
     /// 点が境界の外側にあるかどうかを判定する
     fn is_outside(p: &Point2<T>) -> bool;
