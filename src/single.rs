@@ -16,7 +16,7 @@ pub struct Monoparticle<T: Scalar> {
 
 impl<T> Particle<T, 1> for Monoparticle<T>
 where
-    T: RealField + SampleUniform + Copy,
+    T: RealField + SampleUniform + Copy + Send + Sync,
 {
     type Size = ();
 
@@ -62,7 +62,7 @@ where
 fn random_point<R, T>(rng: &mut R) -> Point2<T>
 where
     R: rand::Rng + ?Sized,
-    T: RealField + SampleUniform + Copy,
+    T: RealField + SampleUniform + Copy + Send + Sync,
 {
     let x = rng.random_range(T::zero()..T::one());
     let y = rng.random_range(Bottom::<T>::f(&x)..Top::<T>::f(&x));

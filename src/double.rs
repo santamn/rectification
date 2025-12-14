@@ -22,7 +22,7 @@ pub struct Diparticle<T: Scalar> {
 
 impl<T> Particle<T, 2> for Diparticle<T>
 where
-    T: RealField + SampleUniform + Copy,
+    T: RealField + SampleUniform + Copy + Send + Sync,
 {
     type Size = T;
 
@@ -282,7 +282,7 @@ where
 
 impl<T> Diparticle<T>
 where
-    T: RealField + Copy,
+    T: RealField + Copy + Send + Sync,
 {
     /// 粒子の動径方向についての単位ベクトル
     #[inline]
@@ -383,7 +383,7 @@ where
 fn random_point<R, T>(rng: &mut R, radius: T) -> Point2<T>
 where
     R: rand::Rng + ?Sized,
-    T: RealField + SampleUniform + Copy,
+    T: RealField + SampleUniform + Copy + Send + Sync,
 {
     let x = rng.random_range(T::zero()..T::one());
     let y = rng.random_range((Bottom::<T>::f(&x) + radius)..(Top::<T>::f(&x) - radius));

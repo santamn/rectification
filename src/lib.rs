@@ -11,7 +11,7 @@ pub use double::Diparticle;
 pub use single::Monoparticle;
 
 pub trait Particle<T, const C: usize> {
-    type Size;
+    type Size: Send + Sync + Copy;
 
     fn new<R: Rng>(rng: &mut R, size: Self::Size) -> Self;
     fn displacement(&self) -> T;

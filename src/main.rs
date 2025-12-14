@@ -2,34 +2,44 @@ use nalgebra::{RealField, Vector2, convert};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
-use rectification::{Diparticle, Particle};
+use rectification::{Monoparticle, Particle};
 use std::f64::consts::SQRT_2;
 use std::fs::File;
 use std::io::{BufWriter, Write};
-use std::iter::Sum;
 
 type Real = f64; // 計算の精度を決める型
 
-const PARTICLES: u64 = 30_000; //              アンサンブル平均に用いる粒子数  3×10^4
-const STEPS: u64 = 1_000_000_000; //           シミュレーションの時間ステップ数  10^9
-const DELTA_T: Real = 1e-8; //                 時間刻み幅                 10^-8　: √δt = 0.0001 
-const TIME: Real = STEPS as Real * DELTA_T; // 総シミュレーション時間         10
-const LENGTH: Real = 0.01; //                  ディパーティクルの長さ         0.01
+const PARTICLES: u64 = 30_000; //               アンサンブル平均に用いる粒子数  3×10^4
+const STEPS: usize = 100_000; //                シミュレーションの時間ステップ数  10^5
+const DELTA_T: Real = 0.000_1; //               時間刻み幅
+const TIME: Real = STEPS as Real * DELTA_T; //  総シミュレーション時間         10
+// const LENGTH: Real = 0.01; //                    ディパーティクルの長さ         0.01
+// const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
 
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/mu_di.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/d_eff_di.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/alpha_di.dat").unwrap());
+    let mut mu_writer = BufWriter::new(File::create("data/mu_mono_150.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/d_eff_mono_150.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/alpha_mono_150.dat").unwrap());
 
     for i in 0..=150 {
         let f_x = i as Real;
 
-        let (mean, mean_square) =
-            simulate_brownian_motion(STEPS, PARTICLES, LENGTH, DELTA_T, Vector2::new(f_x, 0.0));
-        let (mean_rev, mean_square_rev) =
-            simulate_brownian_motion(STEPS, PARTICLES, LENGTH, DELTA_T, Vector2::new(-f_x, 0.0));
+        let (mean, mean_square) = simulate_brownian_motion::<Monoparticle<_>, _, _>(
+            STEPS,
+            PARTICLES,
+            (),
+            DELTA_T,
+            Vector2::new(f_x, 0.0),
+        );
+        let (mean_rev, mean_square_rev) = simulate_brownian_motion::<Monoparticle<_>, _, _>(
+            STEPS,
+            PARTICLES,
+            (),
+            DELTA_T,
+            Vector2::new(-f_x, 0.0),
+        );
 
         let mu = nonlinear_mobility(mean / TIME, f_x);
         let mu_rev = nonlinear_mobility(mean_rev / TIME, -f_x);
@@ -50,15 +60,17 @@ fn main() {
 }
 
 /// ブラウン運動のシミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
-fn simulate_brownian_motion<T>(
-    steps: u64,
+#[allow(dead_code)]
+fn simulate_brownian_motion<P, T, const C: usize>(
+    steps: usize,
     particles: u64,
-    length: T,
+    length: P::Size,
     delta_t: T,
     f: Vector2<T>,
 ) -> (T, T)
 where
-    T: RealField + SampleUniform + Sum + Copy,
+    P: Particle<T, C>,
+    T: RealField + SampleUniform + Copy,
     StandardNormal: Distribution<T>,
 {
     let scale = convert::<_, T>(SQRT_2) * delta_t.sqrt();
@@ -67,21 +79,18 @@ where
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
-            let particle = Diparticle::new(&mut rng, length);
+            let particle = P::new(&mut rng, length);
 
-            let delta_x = (0..steps)
-                .map(|_| {
-                    // 微小時間に粒子に加わる外力F + ブラウン運動
-                    [
-                        f * delta_t + noise(&mut rng, scale), // 端1に加わる力
-                        f * delta_t + noise(&mut rng, scale), // 端2に加わる力
-                    ]
-                })
-                .fold(particle, |mut acc, forces| {
-                    acc.apply_forces(forces);
-                    acc
-                })
-                .displacement();
+            let delta_x = std::iter::repeat_with(|| {
+                // [微小時間に粒子に加わる力 = 外力F + ブラウン運動; C = 粒子中の力を受ける部分の数]
+                std::array::from_fn(|_| f * delta_t + noise(&mut rng, scale))
+            })
+            .take(steps)
+            .fold(particle, |mut p, forces| {
+                p.apply_forces(forces);
+                p
+            })
+            .displacement();
 
             (delta_x, delta_x * delta_x) // (変位, 二乗変位)
         })
@@ -127,15 +136,19 @@ fn alpha(mu: Real, mu_rev: Real) -> Real {
     (mu - mu_rev).abs() / (mu + mu_rev)
 }
 
+#[cfg(test)]
 mod test {
+    use rectification::Diparticle;
+
     #[test]
     fn test_simulation() {
-        let _ = super::simulate_brownian_motion(
-            10_000,
-            1000,
-            0.01, // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
-            0.000_1,
+        super::simulate_brownian_motion::<Diparticle<_>, _, _>(
+            10_000_000, // 10^7
+            30_000,     // 3×10^4
+            0.01,       // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
+            1e-8,
             nalgebra::Vector2::new(1.0, 0.0),
         );
+        // 実行時間: 10^11 [step*pariticles] -> 6810秒 (約1.9時間)
     }
 }
