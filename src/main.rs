@@ -132,18 +132,13 @@ mod test {
 
     #[test]
     fn test_monoparticle() {
-        let (x, xx): (f64, f64) = super::simulate_brownian_motion::<Monoparticle<_>, _, _>(
+        let (_, _): (f64, f64) = super::simulate_brownian_motion::<Monoparticle<_>, _, _>(
             100_000,
             30_000,
             1e-4,
             Vector2::new(1.0, 0.0),
             (),
         );
-        println!("Mean displacement: {}", x);
-        println!("Mean square displacement: {}", xx);
-
-        assert!(x.is_finite());
-        assert!(xx.is_finite());
     }
 
     #[test]

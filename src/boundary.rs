@@ -23,7 +23,7 @@ impl<T: RealField + Copy> Boundary<T> for Top<T> {
     #[inline]
     fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
         let n = Vector2::new(omega_prime(x), -T::one()).normalize();
-        v - n * n.dot(v) * convert::<_, T>(2.0)
+        v - n * convert::<_, T>(2.0) * n.dot(v)
     }
 
     #[inline]
@@ -41,7 +41,7 @@ impl<T: RealField + Copy> Boundary<T> for Bottom<T> {
     #[inline]
     fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
         let n = Vector2::new(omega_prime(x), T::one()).normalize();
-        v - n * n.dot(v) * convert::<_, T>(2.0)
+        v - n * convert::<_, T>(2.0) * n.dot(v)
     }
 
     #[inline]

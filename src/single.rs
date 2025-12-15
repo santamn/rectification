@@ -34,9 +34,6 @@ where
     }
 
     fn apply_forces(&mut self, forces: [Vector2<T>; 1]) {
-        dbg!(&forces);
-        dbg!(&self.current);
-
         let [dr] = forces;
         let tentative = self.current + dr;
 
@@ -76,7 +73,7 @@ where
         &current.x,
     );
     // 現在位置から衝突点までのベクトル
-    let to_collision_point = current + v - Point2::new(collision_x, B::f(&collision_x));
+    let to_collision_point = Point2::new(collision_x, B::f(&collision_x)) - current;
     // 反射を計算
     to_collision_point + B::reflect_at(&collision_x, &(v - to_collision_point))
 }
