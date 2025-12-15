@@ -4,7 +4,8 @@ set output "mu.tex"
 set key top left offset 3, -2         
 set logscale x                 
 
-set xlabel "$|f|$"             
+set xlabel "$|f|$"     
+set xrange [1:150]        
 set ylabel "$\\mu(f)$"         
 
 plot "../data/mono/mu_150.dat" using 1:2 with points pt 7  title "Forward", \

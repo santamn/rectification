@@ -4,7 +4,8 @@ set output "d_eff.tex"
 set key top left offset 3, -2
 set logscale x                 
 
-set xlabel "$|f|$"             
+set xlabel "$|f|$"    
+set xrange [1:150]         
 set ylabel "$D_{\\mathrm{eff}}$"
 set yrange [0:10]
 
