@@ -19,9 +19,9 @@ const TIME: Real = STEPS as Real * DELTA_T; //  総シミュレーション時�
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/mono/mu_150.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/mono/d_eff_150.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/mono/alpha_150.dat").unwrap());
+    let mut mu_writer = BufWriter::new(File::create("data/mono/mu_150_x10.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/mono/d_eff_150_x10.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/mono/alpha_150_x10.dat").unwrap());
 
     for i in 1..=150 {
         let f = Vector2::new(i as Real, 0.0);

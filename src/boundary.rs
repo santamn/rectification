@@ -56,7 +56,7 @@ where
     T: RealField + Copy,
 {
     let (s, c) = (T::two_pi() * *x).sin_cos();
-    s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
+    (s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)) * convert::<_, T>(10.0)
 }
 
 /// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx) = 2πcos(2πx){cos(2πx) + 1} - π
@@ -65,5 +65,5 @@ where
     T: RealField + Copy,
 {
     let c = (T::two_pi() * *x).cos();
-    T::two_pi() * c * (c + T::one()) - T::pi()
+    (T::two_pi() * c * (c + T::one()) - T::pi()) * convert::<_, T>(10.0)
 }
