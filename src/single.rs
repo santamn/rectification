@@ -34,6 +34,9 @@ where
     }
 
     fn apply_forces(&mut self, forces: [Vector2<T>; 1]) {
+        dbg!(&forces);
+        dbg!(&self.current);
+
         let [dr] = forces;
         let tentative = self.current + dr;
 
@@ -42,19 +45,11 @@ where
             .position_of(&tentative.y)
         {
             // 上壁と衝突する場合
-            Above => {
-                let collision_x = binary_search_root(Top::<T>::f, &self.current.x, &tentative.x);
-                let to_channel = tentative - Point2::new(collision_x, Top::<T>::f(&collision_x));
-                to_channel + Top::<T>::reflect_at(&collision_x, &(dr - to_channel))
-            }
+            Above => reflected_vector::<Top<_>, T>(&self.current, &dr),
             // 境界内の場合
             Within => dr,
             // 下壁と衝突する場合
-            Below => {
-                let collision_x = binary_search_root(Bottom::<T>::f, &self.current.x, &tentative.x);
-                let to_channel = tentative - Point2::new(collision_x, Bottom::<T>::f(&collision_x));
-                to_channel + Bottom::<T>::reflect_at(&collision_x, &(dr - to_channel))
-            }
+            Below => reflected_vector::<Bottom<_>, T>(&self.current, &dr),
         };
     }
 }
@@ -67,4 +62,21 @@ where
     let x = rng.random_range(T::zero()..T::one());
     let y = rng.random_range(Bottom::<T>::f(&x)..Top::<T>::f(&x));
     Point2::new(x, y)
+}
+
+fn reflected_vector<B, T>(current: &Point2<T>, v: &Vector2<T>) -> Vector2<T>
+where
+    B: Boundary<T>,
+    T: RealField + Copy,
+{
+    // 粒子と壁の衝突点を求める
+    let collision_x = binary_search_root(
+        |x| current.y + (current.x - *x) * v.y / v.x - B::f(x),
+        &(current.x + v.x),
+        &current.x,
+    );
+    // 現在位置から衝突点までのベクトル
+    let to_collision_point = current + v - Point2::new(collision_x, B::f(&collision_x));
+    // 反射を計算
+    to_collision_point + B::reflect_at(&collision_x, &(v - to_collision_point))
 }

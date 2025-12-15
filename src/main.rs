@@ -23,7 +23,7 @@ fn main() {
     let mut d_writer = BufWriter::new(File::create("data/mono/d_eff_150_x10.dat").unwrap());
     let mut alpha_writer = BufWriter::new(File::create("data/mono/alpha_150_x10.dat").unwrap());
 
-    for i in 0..=150 {
+    for i in 1..=150 {
         let f = Vector2::new(i as Real, 0.0);
 
         let (mean, mean_square) =
@@ -71,7 +71,7 @@ where
             let particle = P::new(&mut rng, length);
 
             let delta_x = std::iter::repeat_with(|| {
-                // [微小時間に粒子に加わる力 = 外力F + ブラウン運動; C = 粒子中の力を受ける部分の数]
+                // 微小時間に粒子に加わる力 = 外力F + ブラウン運動
                 std::array::from_fn(|_| f * delta_t + noise(&mut rng, scale))
             })
             .take(steps)
@@ -127,17 +127,34 @@ fn alpha(mu: Real, mu_rev: Real) -> Real {
 
 #[cfg(test)]
 mod test {
-    use rectification::Diparticle;
+    use nalgebra::Vector2;
+    use rectification::{Diparticle, Monoparticle};
 
     #[test]
-    fn test_simulation() {
+    fn test_monoparticle() {
+        let (x, xx): (f64, f64) = super::simulate_brownian_motion::<Monoparticle<_>, _, _>(
+            100_000,
+            30_000,
+            1e-4,
+            Vector2::new(1.0, 0.0),
+            (),
+        );
+        println!("Mean displacement: {}", x);
+        println!("Mean square displacement: {}", xx);
+
+        assert!(x.is_finite());
+        assert!(xx.is_finite());
+    }
+
+    #[test]
+    fn test_diparticle() {
+        // 実行時間: 10^11 [step*pariticles] -> 6810秒 (約1.9時間)
         super::simulate_brownian_motion::<Diparticle<_>, _, _>(
             10_000_000, // 10^7
             30_000,     // 3×10^4
             1e-8,
-            nalgebra::Vector2::new(1.0, 0.0),
+            Vector2::new(1.0, 0.0),
             0.01, // チャネルの最狭部の幅は 約0.038 なので、それより小さい値にする
         );
-        // 実行時間: 10^11 [step*pariticles] -> 6810秒 (約1.9時間)
     }
 }

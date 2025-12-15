@@ -1,4 +1,4 @@
-use nalgebra::{Point2, RealField, Scalar, Unit, Vector2, convert};
+use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
 use std::marker::PhantomData;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
@@ -22,8 +22,8 @@ impl<T: RealField + Copy> Boundary<T> for Top<T> {
 
     #[inline]
     fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
-        let n = Unit::new_normalize(Vector2::new(omega_prime(x), -T::one()));
-        v - n.as_ref() * convert::<_, T>(2.0) * n.as_ref().dot(v)
+        let n = Vector2::new(omega_prime(x), -T::one()).normalize();
+        v - n * n.dot(v) * convert::<_, T>(2.0)
     }
 
     #[inline]
@@ -40,8 +40,8 @@ impl<T: RealField + Copy> Boundary<T> for Bottom<T> {
 
     #[inline]
     fn reflect_at(x: &T, v: &Vector2<T>) -> Vector2<T> {
-        let n = Unit::new_normalize(Vector2::new(-omega_prime(x), T::one()));
-        v - n.as_ref() * convert::<_, T>(2.0) * n.as_ref().dot(v)
+        let n = Vector2::new(omega_prime(x), T::one()).normalize();
+        v - n * n.dot(v) * convert::<_, T>(2.0)
     }
 
     #[inline]
@@ -50,20 +50,20 @@ impl<T: RealField + Copy> Boundary<T> for Bottom<T> {
     }
 }
 
-/// ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12
+/// ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12 = sin(2πx) + 0.5sin(2πx)cos(2πx) + 1.12
 fn omega<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
     let (s, c) = (T::two_pi() * *x).sin_cos();
-    (s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)) * convert::<_, T>(10.0)
+    s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
 }
 
-/// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx)
+/// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx) = 2πcos(2πx){cos(2πx) + 1} - π
 fn omega_prime<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
     let c = (T::two_pi() * *x).cos();
-    (T::two_pi() * c * (c + T::one()) - T::pi()) * convert::<_, T>(10.0)
+    T::two_pi() * c * (c + T::one()) - T::pi()
 }
