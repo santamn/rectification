@@ -2,34 +2,38 @@ use nalgebra::{RealField, Vector2, convert};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
-use rectification::{Monoparticle, Particle};
+use rectification::{Diparticle, Particle};
 use std::f64::consts::SQRT_2;
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
 type Real = f64; // 計算の精度を決める型
 
-const PARTICLES: u64 = 30_000; //               アンサンブル平均に用いる粒子数  3×10^4
-const STEPS: usize = 1_000_000; //              シミュレーションの時間ステップ数  10^6
-const DELTA_T: Real = 1e-8; //                  時間刻み幅                 10^-8
-const TIME: Real = STEPS as Real * DELTA_T; //  総シミュレーション時間         0.01
-// const LENGTH: Real = 0.01; //                    ディパーティクルの長さ     0.01
-// const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
+// 単粒子の場合のパラメータ(_01)
+// const STEPS: usize = 1_000_000; // シミュレーションの時間ステップ数  10^6
+// const DELTA_T: Real = 1e-8; //     時間刻み幅                10^-8
+
+// 双粒子の場合のパラメータ
+const PARTICLES: u64 = 30_000; //                アンサンブル平均に用いる粒子数  3×10^4
+const STEPS: usize = 100_000; //                 シミュレーションの時間ステップ数  10^5
+const TIME: Real = STEPS as Real * DELTA_T; //   総シミュレーション時間         0.001 : 短すぎる
+const LENGTH: Real = 0.01; //                    ディパーティクルの長さ         0.01 < チャネルの最狭部の幅 約0.038
+const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
 
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/mono/mu_150_001.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/mono/d_eff_150_001.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/mono/alpha_150_001.dat").unwrap());
+    let mut mu_writer = BufWriter::new(File::create("data/di/mu_150_001.dat").unwrap());
+    let mut d_writer = BufWriter::new(File::create("data/di/d_eff_150_001.dat").unwrap());
+    let mut alpha_writer = BufWriter::new(File::create("data/di/alpha_150_001.dat").unwrap());
 
     for i in 1..=150 {
         let f = Vector2::new(i as Real, 0.0);
 
         let (mean, mean_square) =
-            simulate_brownian_motion::<Monoparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, f, ());
+            simulate_brownian_motion::<Diparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, f, LENGTH);
         let (mean_rev, mean_square_rev) =
-            simulate_brownian_motion::<Monoparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, -f, ());
+            simulate_brownian_motion::<Diparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, -f, LENGTH);
 
         let mu = nonlinear_mobility(mean / TIME, f.x);
         let mu_rev = nonlinear_mobility(mean_rev / TIME, -f.x);
