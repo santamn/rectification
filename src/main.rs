@@ -61,7 +61,7 @@ fn main() {
         writeln!(
             traj_writer,
             "{} {} {} {}",
-            step + 1,
+            step,
             pos.x,
             pos.y,
             angle % 2.0 * PI
@@ -138,8 +138,9 @@ where
     })
     .take(steps)
     .scan(particle, |p, forces| {
+        let s = p.status();
         p.apply_forces(forces);
-        Some(p.status())
+        Some(s)
     })
     .collect()
 }
