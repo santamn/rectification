@@ -1,4 +1,5 @@
 use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
+use std::f64::consts::PI;
 use std::marker::PhantomData;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー
@@ -51,19 +52,25 @@ impl<T: RealField + Copy> Boundary<T> for Bottom<T> {
 }
 
 /// ω(x) = sin(2πx) + 0.25sin(4πx) + 1.12 = sin(2πx) + 0.5sin(2πx)cos(2πx) + 1.12
+/// ω(x) = 1.5 + 0.5sin(2πx)
+/// ω(x) = 2.75 + 2.25sin(2πx)
 fn omega<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
-    let (s, c) = (T::two_pi() * *x).sin_cos();
-    s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
+    // let (s, c) = (T::two_pi() * *x).sin_cos();
+    // s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
+    convert::<_, T>(2.75) + convert::<_, T>(2.25) * (T::two_pi() * *x).sin()
 }
 
 /// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx) = 2πcos(2πx){cos(2πx) + 1} - π
+/// ω'(x) = πsin(2πx)
+/// ω'(x) = 4.5πcos(2πx)
 fn omega_prime<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
-    let c = (T::two_pi() * *x).cos();
-    T::two_pi() * c * (c + T::one()) - T::pi()
+    // let c = (T::two_pi() * *x).cos();
+    // T::two_pi() * c * (c + T::one()) - T::pi()
+    convert::<_, T>(4.5 * PI) * (T::two_pi() * *x).sin()
 }
