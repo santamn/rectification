@@ -12,13 +12,12 @@ mod edge_displacement;
 
 use edge_displacement::{ConstrainedEdgeDisplacements, EdgeDisplacements};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Diparticle<T: Scalar> {
-    initial: Point2<T>,           // 初期位置
-    current: Point2<T>,           // 現在位置
-    length: T,                    // 粒子間の長さ
-    angle: T,                     // 棒がx軸となす偏角
-    history: Vec<(Point2<T>, T)>, // 履歴
+    initial: Point2<T>, // 初期位置
+    current: Point2<T>, // 現在位置
+    length: T,          // 粒子間の長さ
+    angle: T,           // 棒がx軸となす偏角
 }
 
 impl<T> Particle<T, 2> for Diparticle<T>
@@ -32,15 +31,11 @@ where
         R: rand::Rng,
     {
         let initial_point = random_point::<R, T>(rng, size * convert::<_, T>(0.5));
-        let initial_angle = rng.random_range(T::zero()..T::two_pi());
-        let mut history = Vec::with_capacity(3_000_000);
-        history.push((initial_point, initial_angle));
         Self {
             initial: initial_point,
             current: initial_point,
             length: size,
-            angle: initial_angle,
-            history,
+            angle: rng.random_range(T::zero()..T::two_pi()),
         }
     }
 
@@ -302,12 +297,11 @@ where
         let (dr_1, dr_2) = edge_displacements.into_inner();
         self.current += (dr_1 + dr_2) * convert::<_, T>(0.5);
         self.angle += (dr_1 - dr_2).norm() / self.length;
-        self.history.push((self.current, self.angle));
     }
 
     #[inline]
-    fn history(&self) -> &Vec<(Point2<T>, T)> {
-        &self.history
+    pub fn status(&self) -> (Point2<T>, T) {
+        (self.current, self.angle)
     }
 
     /// 両端の現在位置を求める

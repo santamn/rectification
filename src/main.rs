@@ -1,4 +1,4 @@
-use nalgebra::{RealField, Vector2, convert};
+use nalgebra::{Point2, RealField, Vector2, convert};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
@@ -27,30 +27,38 @@ const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGT
 fn main() {
     let start = std::time::Instant::now();
 
-    let mut mu_writer = BufWriter::new(File::create("data/di/mu_150_01.dat").unwrap());
-    let mut d_writer = BufWriter::new(File::create("data/di/d_eff_150_01.dat").unwrap());
-    let mut alpha_writer = BufWriter::new(File::create("data/di/alpha_150_01.dat").unwrap());
+    // let mut mu_writer = BufWriter::new(File::create("data/di/mu_150_01.dat").unwrap());
+    // let mut d_writer = BufWriter::new(File::create("data/di/d_eff_150_01.dat").unwrap());
+    // let mut alpha_writer = BufWriter::new(File::create("data/di/alpha_150_01.dat").unwrap());
 
-    for i in 1..=150 {
-        let f = Vector2::new(i as Real, 0.0);
+    // for i in 1..=150 {
+    //     let f = Vector2::new(i as Real, 0.0);
 
-        let (mean, mean_square) =
-            simulate_brownian_motion::<Diparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, f, LENGTH);
-        let (mean_rev, mean_square_rev) =
-            simulate_brownian_motion::<Diparticle<_>, _, _>(STEPS, PARTICLES, DELTA_T, -f, LENGTH);
+    //     let (mean, mean_square) =
+    //         simulate_brownian_motion::<_, 2>(STEPS, PARTICLES, DELTA_T, f, LENGTH);
+    //     let (mean_rev, mean_square_rev) =
+    //         simulate_brownian_motion::<_, 2>(STEPS, PARTICLES, DELTA_T, -f, LENGTH);
 
-        let mu = nonlinear_mobility(mean / TIME, f.x);
-        let mu_rev = nonlinear_mobility(mean_rev / TIME, -f.x);
-        writeln!(mu_writer, "{} {} {}", f.x, mu, mu_rev).unwrap();
-        writeln!(
-            d_writer,
-            "{} {} {}",
-            f.x,
-            effective_diffusion(mean, mean_square, TIME),
-            effective_diffusion(mean_rev, mean_square_rev, TIME)
-        )
-        .unwrap();
-        writeln!(alpha_writer, "{} {}", f.x, alpha(mu, mu_rev)).unwrap();
+    //     let mu = nonlinear_mobility(mean / TIME, f.x);
+    //     let mu_rev = nonlinear_mobility(mean_rev / TIME, -f.x);
+    //     writeln!(mu_writer, "{} {} {}", f.x, mu, mu_rev).unwrap();
+    //     writeln!(
+    //         d_writer,
+    //         "{} {} {}",
+    //         f.x,
+    //         effective_diffusion(mean, mean_square, TIME),
+    //         effective_diffusion(mean_rev, mean_square_rev, TIME)
+    //     )
+    //     .unwrap();
+    //     writeln!(alpha_writer, "{} {}", f.x, alpha(mu, mu_rev)).unwrap();
+    // }
+
+    let mut traj_writer = BufWriter::new(File::create("data/di/trajectory_f1_seed0.dat").unwrap());
+    for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 0)
+        .into_iter()
+        .enumerate()
+    {
+        writeln!(traj_writer, "{} {} {} {}", step + 1, pos.x, pos.y, angle).unwrap();
     }
 
     println!("Elapsed: {:.2?}", start.elapsed());
@@ -58,15 +66,15 @@ fn main() {
 
 /// ブラウン運動のシミュレーションを実行し、粒子の平均変位と平均二乗変位を返す
 #[allow(dead_code)]
-fn simulate_brownian_motion<P, T, const C: usize>(
+fn simulate_brownian_motion<T, const C: usize>(
     steps: usize,
     particles: u64,
     delta_t: T,
     f: Vector2<T>,
-    length: P::Size,
+    length: <Diparticle<T> as Particle<T, C>>::Size,
 ) -> (T, T)
 where
-    P: Particle<T, C>,
+    Diparticle<T>: Particle<T, C>,
     T: RealField + SampleUniform + Copy,
     StandardNormal: Distribution<T>,
 {
@@ -76,7 +84,7 @@ where
         .into_par_iter() // 各粒子のシミュレーションを並列化
         .map(|i| {
             let mut rng = SmallRng::seed_from_u64(i);
-            let particle = P::new(&mut rng, length);
+            let particle = Diparticle::<T>::new(&mut rng, length);
 
             let delta_x = std::iter::repeat_with(|| {
                 // 微小時間に粒子に加わる力 = 外力F + ブラウン運動
@@ -99,6 +107,33 @@ where
             )
         })
         .unwrap()
+}
+
+fn movement_history<T>(
+    steps: usize,
+    delta_t: T,
+    f: Vector2<T>,
+    length: T,
+    seed: u64,
+) -> Vec<(Point2<T>, T)>
+where
+    T: RealField + SampleUniform + Copy,
+    StandardNormal: Distribution<T>,
+{
+    let mut rng = SmallRng::seed_from_u64(seed);
+    let particle = Diparticle::<T>::new(&mut rng, length);
+    let scale = convert::<_, T>(SQRT_2) * delta_t.sqrt();
+
+    std::iter::repeat_with(|| {
+        // 微小時間に粒子に加わる力 = 外力F + ブラウン運動
+        std::array::from_fn(|_| f * delta_t + noise(&mut rng, scale))
+    })
+    .take(steps)
+    .scan(particle, |p, forces| {
+        p.apply_forces(forces);
+        Some(p.status())
+    })
+    .collect()
 }
 
 /// 正規分布に従う2次元ノイズベクトルを生成
@@ -134,25 +169,15 @@ fn alpha(mu: Real, mu_rev: Real) -> Real {
 }
 
 #[cfg(test)]
+#[allow(unused_imports)]
 mod test {
     use nalgebra::Vector2;
-    use rectification::{Diparticle, Monoparticle};
-
-    #[test]
-    fn test_monoparticle() {
-        let (_, _): (f64, f64) = super::simulate_brownian_motion::<Monoparticle<_>, _, _>(
-            100_000,
-            30_000,
-            1e-4,
-            Vector2::new(1.0, 0.0),
-            (),
-        );
-    }
+    use rectification::Diparticle;
 
     #[test]
     fn test_diparticle() {
         // 実行時間: 10^11 [step*pariticles] -> 6810秒 (約1.9時間)
-        super::simulate_brownian_motion::<Diparticle<_>, _, _>(
+        super::simulate_brownian_motion::<_, 2>(
             10_000_000, // 10^7
             30_000,     // 3×10^4
             1e-8,
