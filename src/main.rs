@@ -3,7 +3,7 @@ use rand::{Rng, SeedableRng, rngs::SmallRng};
 use rand_distr::{Distribution, StandardNormal, uniform::SampleUniform};
 use rayon::prelude::*;
 use rectification::{Diparticle, Particle};
-use std::f64::consts::SQRT_2;
+use std::f64::consts::{PI, SQRT_2};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 
@@ -58,7 +58,15 @@ fn main() {
         .into_iter()
         .enumerate()
     {
-        writeln!(traj_writer, "{} {} {} {}", step + 1, pos.x, pos.y, angle).unwrap();
+        writeln!(
+            traj_writer,
+            "{} {} {} {}",
+            step + 1,
+            pos.x,
+            pos.y,
+            angle % 2.0 * PI
+        )
+        .unwrap();
     }
 
     println!("Elapsed: {:.2?}", start.elapsed());
