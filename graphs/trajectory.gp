@@ -5,6 +5,13 @@
 file = "data/di/trajectory.dat"
 out  = "data/di/trajectory.gif"
 
+# If you run gnuplot from within ./graphs, the relative path differs.
+# Auto-fallback to ../data/... when needed.
+if (system(sprintf("test -f '%s' && echo 1 || echo 0", file)) eq "0\n") {
+    file = "../data/di/trajectory.dat"
+    out  = "../data/di/trajectory.gif"
+}
+
 # rod length
 L = 0.01
 
@@ -24,9 +31,14 @@ set samples 2000
 set tics out
 
 # determine x-range from data (with margin)
-stats file using 2 name "X" nooutput
-xmin = X_min
-xmax = X_max
+# Use STATS_* for compatibility across gnuplot versions.
+stats file using 2 nooutput
+if (STATS_records < 1) {
+    print sprintf("ERROR: failed to read data file: %s", file)
+    exit
+}
+xmin = STATS_min
+xmax = STATS_max
 xspan = xmax - xmin
 if (xspan == 0) xspan = 1
 set xrange [xmin - 0.05*xspan : xmax + 0.05*xspan]
