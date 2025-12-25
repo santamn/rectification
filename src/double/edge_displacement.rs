@@ -13,7 +13,7 @@ impl<T: RealField + Copy> EdgeDisplacements<T> for (Vector2<T>, Vector2<T>) {
         T: RealField + Copy,
     {
         let (dr_1, dr_2) = self;
-        let dv = dir.as_ref() * dir.as_ref().dot(&(dr_1 - dr_2)) * convert::<_, T>(0.5);
+        let dv = dir.as_ref() * dir.as_ref().dot(&(dr_1 - dr_2)) * convert::<_, T>(0.5); // [dir・(dr_1 - dr_2)/2] dir 
         ConstrainedEdgeDisplacements(dr_1 - dv, dr_2 + dv)
     }
 }
