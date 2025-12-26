@@ -22,7 +22,7 @@ const PARTICLES: u64 = 30_000; //                アンサンブル平均に用�
 const STEPS: usize = 1_000_000; //               シミュレーションの時間ステップ数  10^6
 const TIME: Real = STEPS as Real * DELTA_T; //   総シミュレーション時間         0.01 : 短すぎる
 const LENGTH: Real = 0.5; //                     ディパーティクルの長さ         0.01 < チャネルの最狭部の幅 1
-const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
+const DELTA_T: Real = LENGTH * LENGTH * 1e-6; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
 
 fn main() {
     let start = std::time::Instant::now();
@@ -54,8 +54,8 @@ fn main() {
     // }
 
     let mut traj_writer =
-        BufWriter::new(File::create("data/di/trajectory_f1_seed0_10_1.dat").unwrap());
-    for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 0)
+        BufWriter::new(File::create("data/di/trajectory_f1_seed10_025.dat").unwrap());
+    for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 10)
         .into_iter()
         .enumerate()
     {

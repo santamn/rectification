@@ -2,20 +2,20 @@
 # Data format (columns): step  x  y  theta[radian]
 # Example line: 123  0.0123  1.0456  -0.37
 
-file = "data/di/trajectory_f1_seed0_10_1.dat"
-out  = "data/di/trajectory_10_1.gif"
+file = "data/di/trajectory_f1_seed10_025.dat"
+out  = "data/di/trajectory_025.gif"
 
 
 # rod length
 L = 0.5
 
 # animation controls
-speed_factor = 10                 # 10x faster playback (time advances 10x per frame)
+speed_factor = 10                 # 1x faster playback (time advances 10x per frame)
 frame_stride = 200 * speed_factor # larger -> fewer frames -> faster to render
 frame_delay  = 3                  # 1/100 sec per frame
 
 # plot window controls
-x_window = 1.0          # show x-range with width = 1 (centered on data)
+x_margin = 0.05         # add margin to x-range so the full trajectory fits
 
 # channel boundary: omega(x)
 omega(x) = 2.75 + 2.25*sin(2*pi*x)
@@ -37,17 +37,23 @@ if (!exists("X_records") || X_records < 1) {
 }
 xmin_data = X_min
 xmax_data = X_max
-
-# Force the displayed x-range width to x_window, centered on the data.
-xmid = 0.5*(xmin_data + xmax_data)
-xmin = xmid - 0.5*x_window
-xmax = xmid + 0.5*x_window
-xspan = xmax - xmin
+xspan_data = xmax_data - xmin_data
+if (xspan_data == 0) { xspan_data = 1 }
+xmin = xmin_data - x_margin*xspan_data
+xmax = xmax_data + x_margin*xspan_data
 set xrange [xmin : xmax]
 
-# determine y-range so that ±omega(x) fit in the current xrange
-# (simple scan, avoids needing analytic max)
-ymax = 0
+# determine y-range so that both the trajectory and ±omega(x) fit in the current xrange
+# (simple scan for omega, avoids needing analytic max)
+stats file using 3 name "Y" nooutput
+if (!exists("Y_records") || Y_records < 1) {
+    print sprintf("ERROR: failed to read data file (y column): %s", file)
+    exit
+}
+ymax_data = abs(Y_min)
+if (abs(Y_max) > ymax_data) { ymax_data = abs(Y_max) }
+
+ymax_omega = 0
 nscan = 2000
 xlo = xmin
 xhi = xmax
@@ -57,8 +63,11 @@ if (xw == 0) { xw = 1 }
 do for [k=0:nscan] {
     xx = xlo + xw*k/nscan
     yy = omega(xx)
-    if (yy > ymax) { ymax = yy }
+    if (yy > ymax_omega) { ymax_omega = yy }
 }
+
+ymax = ymax_data
+if (ymax_omega > ymax) { ymax = ymax_omega }
 set yrange [-1.05*ymax : 1.05*ymax]
 
 # total records (use the same column as xrange stats; avoid xrange filtering issues)
