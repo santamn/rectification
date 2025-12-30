@@ -291,12 +291,18 @@ where
         Unit::new_unchecked(Vector2::new(c, s))
     }
 
+    #[inline]
+    fn e_theta(&self) -> Unit<Vector2<T>> {
+        let (s, c) = self.angle.sin_cos();
+        Unit::new_unchecked(Vector2::new(-s, c))
+    }
+
     /// 粒子の重心位置と偏角の差分を適用する
     #[inline]
     fn move_particle(&mut self, edge_displacements: &ConstrainedEdgeDisplacements<T>) {
         let (dr_1, dr_2) = edge_displacements.into_inner();
         self.current += (dr_1 + dr_2) * convert::<_, T>(0.5);
-        self.angle += (dr_1 - dr_2).norm() / self.length;
+        self.angle += (dr_1 - dr_2).dot(&self.e_theta()) / self.length;
     }
 
     #[inline]

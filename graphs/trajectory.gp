@@ -2,15 +2,15 @@
 # Data format (columns): step  x  y  theta[radian]
 # Example line: 123  0.0123  1.0456  -0.37
 
-file = "data/di/trajectory_f1_seed10_025.dat"
-out  = "data/di/trajectory_025.gif"
+file = "data/di/trajectory_f1_seed1_omega.dat"
+out  = "data/di/trajectory_seed1_omega_1000.gif"
 
 
 # rod length
-L = 0.5
+L = 0.02
 
 # animation controls
-speed_factor = 10                 # 1x faster playback (time advances 10x per frame)
+speed_factor = 1000               # 1000x faster playback (time advances 10x per frame)
 frame_stride = 200 * speed_factor # larger -> fewer frames -> faster to render
 frame_delay  = 3                  # 1/100 sec per frame
 
@@ -18,7 +18,8 @@ frame_delay  = 3                  # 1/100 sec per frame
 x_margin = 0.05         # add margin to x-range so the full trajectory fits
 
 # channel boundary: omega(x)
-omega(x) = 2.75 + 2.25*sin(2*pi*x)
+# omega(x) = 2.75 + 2.25*sin(2*pi*x)
+omega(x) = sin(2*pi*x) + 0.25*sin(4*pi*x) + 1.12
 
 set term gif animate optimize delay frame_delay size 900,700
 set output out

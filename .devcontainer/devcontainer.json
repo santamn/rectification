@@ -38,7 +38,7 @@
       "version": "1.91.1"
     },
     "ghcr.io/devcontainers-extra/features/apt-packages:1": {
-      "packages": "build-essential, clang, mold"
+      "packages": "build-essential, clang, mold, gnuplot"
     }
   },
   "containerUser": "miyake",

@@ -58,9 +58,9 @@ fn omega<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
-    // let (s, c) = (T::two_pi() * *x).sin_cos();
-    // s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
-    convert::<_, T>(2.75) + convert::<_, T>(2.25) * (T::two_pi() * *x).sin()
+    let (s, c) = (T::two_pi() * *x).sin_cos();
+    s + convert::<_, T>(0.5) * s * c + convert::<_, T>(1.12)
+    // convert::<_, T>(2.75) + convert::<_, T>(2.25) * (T::two_pi() * *x).sin()
 }
 
 /// チャネル境界の傾き ω'(x) = 2πcos(2πx) + πcos(4πx) = 2πcos(2πx){cos(2πx) + 1} - π
@@ -70,7 +70,7 @@ fn omega_prime<T>(x: &T) -> T
 where
     T: RealField + Copy,
 {
-    // let c = (T::two_pi() * *x).cos();
-    // T::two_pi() * c * (c + T::one()) - T::pi()
-    convert::<_, T>(4.5 * PI) * (T::two_pi() * *x).sin()
+    let c = (T::two_pi() * *x).cos();
+    T::two_pi() * c * (c + T::one()) - T::pi()
+    // convert::<_, T>(4.5 * PI) * (T::two_pi() * *x).sin()
 }
