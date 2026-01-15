@@ -1,5 +1,4 @@
 use nalgebra::{Point2, RealField, Scalar, Vector2, convert};
-use std::f64::consts::PI;
 use std::marker::PhantomData;
 
 // 境界条件 ω(x) の上/下を区別するためのマーカー

@@ -24,7 +24,7 @@ type Real = f64; // 計算の精度を決める型
 
 // 双粒子の場合のパラメータ(_001): 3×10^4 × 10^5 × 150 = 4.5×10^11 ステップ -> 1時間20分程度
 const PARTICLES: u64 = 30_000; //                アンサンブル平均に用いる粒子数  3×10^4
-const STEPS: usize = 100_000_000; //               シミュレーションの時間ステップ数  10^6
+const STEPS: usize = 1_000_000; //               シミュレーションの時間ステップ数  10^6
 const TIME: Real = STEPS as Real * DELTA_T; //   総シミュレーション時間         0.01 : 短すぎる
 const LENGTH: Real = 0.02; //                     ディパーティクルの長さ         0.01 < チャネルの最狭部の幅 1
 const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
@@ -59,7 +59,7 @@ fn main() {
     // }
 
     let mut traj_writer =
-        BufWriter::new(File::create("data/di/trajectory_f1_seed1_omega.dat").unwrap());
+        BufWriter::new(File::create("data/di/trajectory_f1_seed1_omega_start.dat").unwrap());
     for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 1)
         .into_iter()
         .enumerate()
@@ -165,11 +165,13 @@ where
 }
 
 /// 非線形移動度 μ(f) = ⟨v⟩/f
+#[allow(dead_code)]
 fn nonlinear_mobility(mean_speed: Real, force: Real) -> Real {
     mean_speed / force
 }
 
 /// 有効拡散係数 D_eff = (⟨x²⟩ - ⟨x⟩²)/2t
+#[allow(dead_code)]
 fn effective_diffusion(
     mean_displacement: Real,
     mean_square_displacement: Real,
@@ -179,6 +181,7 @@ fn effective_diffusion(
 }
 
 /// 整流尺度 α = |μ(f) - μ(-f)| / (μ(f) + μ(-f))
+#[allow(dead_code)]
 fn alpha(mu: Real, mu_rev: Real) -> Real {
     (mu - mu_rev).abs() / (mu + mu_rev)
 }

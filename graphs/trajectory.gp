@@ -1,51 +1,56 @@
-# gnuplot script: animated trajectory + moving rod + channel boundaries
-# Data format (columns): step  x  y  theta[radian]
-# Example line: 123  0.0123  1.0456  -0.37
+### アニメーション用 gnuplot スクリプト: 棒が動く軌跡とチャネル境界を描画する
+###
+### 入力データの形式: ステップ x座標  y座標 棒の角度
+### 例:             123  0.0123 1.0456  -0.37
 
-file = "data/di/trajectory_f1_seed1_omega.dat"
-out  = "data/di/trajectory_seed1_omega_1000.gif"
+###############
+### 設定項目 ###
+###############
 
+# 入出力ファイル
+file = "data/di/trajectory_f1_seed1_omega_start.dat"
+out  = "figures/di/trajectory_f1_seed1_omega_start.gif"
 
-# rod length
-L = 0.02
+# アニメーション設定
+frame_stride = 5000 # 何行ごとに1フレーム描くか：大きいほど枚数が少ない
+frame_delay  = 10   # GIFの遅延（1/100秒単位）：大きいほど動画がスローになる
 
-# animation controls
-speed_factor = 1000               # 1000x faster playback (time advances 10x per frame)
-frame_stride = 200 * speed_factor # larger -> fewer frames -> faster to render
-frame_delay  = 3                  # 1/100 sec per frame
-
-# plot window controls
-x_margin = 0.05         # add margin to x-range so the full trajectory fits
-
-# channel boundary: omega(x)
-# omega(x) = 2.75 + 2.25*sin(2*pi*x)
+# チャネル境界: omega(x)
 omega(x) = sin(2*pi*x) + 0.25*sin(4*pi*x) + 1.12
 
-set term gif animate optimize delay frame_delay size 900,700
-set output out
+# 棒の長さ
+L = 0.02
 
-set size ratio -1
-set key off
-set samples 2000
-set tics out
+####################
+### 以下は変更不要 ###
+####################
 
-# determine x-range from data (with margin)
+x_margin = 0.05 # x方向の余白
+nscan = 2000    # omega(x) の最大値を調べるための分割数
 
+# 出力設定
+set term gif animate optimize delay frame_delay size 900,700 # 出力GIFの設定
+set output out                                               # 出力ファイル指定
+set size ratio -1                                            # アスペクト比をデータの範囲に合わせる
+set key off                                                  # 凡例非表示
+set samples nscan                                            # 関数描画のサンプル数を指定
+set tics out                                                 # 軸目盛を外側に出す
+
+# 描画スタイル
+set style line 1 lw 2 lc rgb "#000000"   # 境界
+set style line 2 lw 1 lc rgb "#1f77b4"   # 軌跡
+set style line 3 lw 2 lc rgb "#d62728"   # 棒
+
+# xの範囲をデータから決める（余白つき）
 stats file using 2 name "X" nooutput
 if (!exists("X_records") || X_records < 1) {
     print sprintf("ERROR: failed to read data file: %s", file)
     exit
 }
-xmin_data = X_min
-xmax_data = X_max
-xspan_data = xmax_data - xmin_data
-if (xspan_data == 0) { xspan_data = 1 }
-xmin = xmin_data - x_margin*xspan_data
-xmax = xmax_data + x_margin*xspan_data
-set xrange [xmin : xmax]
+x_span = X_max - X_min
+set xrange [X_min - x_margin*x_span : X_max + x_margin*x_span]
 
-# determine y-range so that both the trajectory and ±omega(x) fit in the current xrange
-# (simple scan for omega, avoids needing analytic max)
+# yの範囲をデータと境界関数の両方が収まるように決める
 stats file using 3 name "Y" nooutput
 if (!exists("Y_records") || Y_records < 1) {
     print sprintf("ERROR: failed to read data file (y column): %s", file)
@@ -55,43 +60,27 @@ ymax_data = abs(Y_min)
 if (abs(Y_max) > ymax_data) { ymax_data = abs(Y_max) }
 
 ymax_omega = 0
-nscan = 2000
-xlo = xmin
-xhi = xmax
-xw  = xhi - xlo
-if (xw == 0) { xw = 1 }
-
 do for [k=0:nscan] {
-    xx = xlo + xw*k/nscan
+    xx = X_min + x_span*k/nscan
     yy = omega(xx)
     if (yy > ymax_omega) { ymax_omega = yy }
 }
-
 ymax = ymax_data
 if (ymax_omega > ymax) { ymax = ymax_omega }
 set yrange [-1.05*ymax : 1.05*ymax]
 
-# total records (use the same column as xrange stats; avoid xrange filtering issues)
-N = X_records
-
-# styles
-set style line 1 lw 2 lc rgb "#000000"   # boundaries
-set style line 2 lw 1 lc rgb "#1f77b4"   # trajectory
-set style line 3 lw 2 lc rgb "#d62728"   # rod
-
-# animation loop
-# - boundaries: y=±omega(x)
-# - trajectory: data up to i-th row
-# - rod: vector centered at (x,y) with angle theta
-
-do for [i=1:N:frame_stride] {
-    set title sprintf("trajectory (row=%d/%d)", i, N)
+# アニメーションループ
+#   - 境界: y=±omega(x)
+#   - 軌跡: 1行目〜i行目まで
+#   - 棒: i 行目の (x,y,theta) からベクトルとして描画
+do for [i=1:X_records:frame_stride] {
+    set title sprintf("trajectory (row=%d/%d)", i, X_records) # タイトルに行数表示
 
     plot \
-        omega(x)   w l ls 1, \
-        -omega(x)  w l ls 1, \
-        file u 2:3 every ::1::i w l ls 2, \
-        file u ($2-0.5*L*cos($4)):($3-0.5*L*sin($4)):(L*cos($4)):(L*sin($4)) every ::i::i w vectors nohead ls 3
+        omega(x)   w l ls 1, \ # 上側境界
+        -omega(x)  w l ls 1, \ # 下側境界
+        file u 2:3 every ::1::i w l ls 2, \ # 軌跡
+        file u ($2-0.5*L*cos($4)):($3-0.5*L*sin($4)):(L*cos($4)):(L*sin($4)) every ::i::i w vectors nohead ls 3 # 棒
 }
 
 set output
