@@ -23,8 +23,8 @@ type Real = f64; // 計算の精度を決める型
 // 棒の長さを 0.1 にしてみる(全体の大きさを10倍に) -> 粒子の動きを確認できるようにしてみる
 
 // 双粒子の場合のパラメータ(_001): 3×10^4 × 10^5 × 150 = 4.5×10^11 ステップ -> 1時間20分程度
-const PARTICLES: u64 = 30_000; //                アンサンブル平均に用いる粒子数  3×10^4
-const STEPS: usize = 1_000_000; //               シミュレーションの時間ステップ数  10^6
+const PARTICLES: u64 = 10_000; //                アンサンブル平均に用いる粒子数  3×10^4
+const STEPS: usize = 100_000_000; //               シミュレーションの時間ステップ数  10^6
 const TIME: Real = STEPS as Real * DELTA_T; //   総シミュレーション時間         0.01 : 短すぎる
 const LENGTH: Real = 0.02; //                     ディパーティクルの長さ         0.01 < チャネルの最狭部の幅 1
 const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGTH/100 となるように設定)
@@ -36,7 +36,7 @@ fn main() {
     // let mut d_writer = BufWriter::new(File::create("data/di/d_eff_150_01.dat").unwrap());
     // let mut alpha_writer = BufWriter::new(File::create("data/di/alpha_150_01.dat").unwrap());
 
-    // for i in 1..=150 {
+    // for i in 1..=100 {
     //     let f = Vector2::new(i as Real, 0.0);
 
     //     let (mean, mean_square) =
@@ -58,22 +58,40 @@ fn main() {
     //     writeln!(alpha_writer, "{} {}", f.x, alpha(mu, mu_rev)).unwrap();
     // }
 
-    let mut traj_writer =
-        BufWriter::new(File::create("data/di/trajectory_f1_seed1_omega_start.dat").unwrap());
-    for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 1)
-        .into_iter()
-        .enumerate()
-    {
-        writeln!(
-            traj_writer,
-            "{} {} {} {}",
-            step,
-            pos.x,
-            pos.y,
-            angle % 2.0 * PI
-        )
-        .unwrap();
-    }
+    let f = Vector2::new(1.0, 0.0);
+    let (mean, mean_square) =
+        simulate_brownian_motion::<_, 2>(STEPS, PARTICLES, DELTA_T, f, LENGTH);
+    let (mean_rev, mean_square_rev) =
+        simulate_brownian_motion::<_, 2>(STEPS, PARTICLES, DELTA_T, -f, LENGTH);
+
+    let mu = nonlinear_mobility(mean / TIME, f.x);
+    let mu_rev = nonlinear_mobility(mean_rev / TIME, -f.x);
+    println!("f_x: {}", f.x);
+    println!("T:{} T_rev:{}", mean / TIME, mean_rev / TIME);
+    println!("μ:{} μ_rev:{}", mu, mu_rev);
+    println!(
+        "D_eff:{} D_eff_rev:{}",
+        effective_diffusion(mean, mean_square, TIME),
+        effective_diffusion(mean_rev, mean_square_rev, TIME)
+    );
+    println!("alpha:{}", alpha(mu, mu_rev));
+
+    // let mut traj_writer =
+    //     BufWriter::new(File::create("data/di/trajectory_f1_seed1_omega_start.dat").unwrap());
+    // for (step, (pos, angle)) in movement_history(STEPS, DELTA_T, Vector2::new(1.0, 0.0), LENGTH, 1)
+    //     .into_iter()
+    //     .enumerate()
+    // {
+    //     writeln!(
+    //         traj_writer,
+    //         "{} {} {} {}",
+    //         step,
+    //         pos.x,
+    //         pos.y,
+    //         angle % 2.0 * PI
+    //     )
+    //     .unwrap();
+    // }
 
     println!("Elapsed: {:.2?}", start.elapsed());
 }
