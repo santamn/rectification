@@ -31,7 +31,6 @@ const DELTA_T: Real = LENGTH * LENGTH * 1e-4; // 時間刻み幅 (√δt = LENGT
 
 fn main() {
     let start = std::time::Instant::now();
-
     // let mut mu_writer = BufWriter::new(File::create("data/di/mu_150_01.dat").unwrap());
     // let mut d_writer = BufWriter::new(File::create("data/di/d_eff_150_01.dat").unwrap());
     // let mut alpha_writer = BufWriter::new(File::create("data/di/alpha_150_01.dat").unwrap());
