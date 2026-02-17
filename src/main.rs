@@ -154,7 +154,6 @@ where
     let mut rng = SmallRng::seed_from_u64(seed);
     let particle = Diparticle::<T>::new(&mut rng, length);
     let scale = convert::<_, T>(SQRT_2) * delta_t.sqrt();
-
     std::iter::repeat_with(|| {
         // 微小時間に粒子に加わる力 = 外力F + ブラウン運動
         std::array::from_fn(|_| f * delta_t + noise(&mut rng, scale))
