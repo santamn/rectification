@@ -16,6 +16,8 @@ CC='gcc'
 export CC
 CC_FOR_BUILD='gcc'
 export CC_FOR_BUILD
+CODELLDB_PATH='/nix/store/w1m6rlpvqj1a6ch5j6sqhl9k0fvi40ar-vscode-extension-vadimcn-vscode-lldb-1.11.4/share/vscode/extensions/vadimcn.vscode-lldb/adapter/codelldb'
+export CODELLDB_PATH
 CONFIG_SHELL='/nix/store/f15k3dpilmiyv6zgpib289rnjykgr1r4-bash-5.3p9/bin/bash'
 export CONFIG_SHELL
 CXX='g++'
@@ -33,6 +35,8 @@ LD='ld'
 export LD
 LD_FOR_BUILD='ld'
 export LD_FOR_BUILD
+LIBLLDB_PATH='/nix/store/w1m6rlpvqj1a6ch5j6sqhl9k0fvi40ar-vscode-extension-vadimcn-vscode-lldb-1.11.4/share/vscode/extensions/vadimcn.vscode-lldb/lldb/lib/liblldb.so'
+export LIBLLDB_PATH
 LINENO='76'
 MACHTYPE='x86_64-pc-linux-gnu'
 NIX_BINTOOLS='/nix/store/ad7airwvns9fnck27nw75ibzalc58105-wild-wrapper-0.8.0'
@@ -53,7 +57,7 @@ NIX_CC_WRAPPER_TARGET_BUILD_x86_64_unknown_linux_gnu='1'
 export NIX_CC_WRAPPER_TARGET_BUILD_x86_64_unknown_linux_gnu
 NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu='1'
 export NIX_CC_WRAPPER_TARGET_HOST_x86_64_unknown_linux_gnu
-NIX_CFLAGS_COMPILE=' -frandom-seed=dwpm17gsri'
+NIX_CFLAGS_COMPILE=' -frandom-seed=p8n28bj8hp'
 export NIX_CFLAGS_COMPILE
 NIX_ENFORCE_NO_NATIVE='1'
 export NIX_ENFORCE_NO_NATIVE
@@ -113,7 +117,7 @@ STRIP='strip'
 export STRIP
 STRIP_FOR_BUILD='strip'
 export STRIP_FOR_BUILD
-XDG_DATA_DIRS='/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1/share:/nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4/share:/nix/store/c2p7haf4zzkbrir9zs662r68c5dmylbq-patchelf-0.15.2/share'
+XDG_DATA_DIRS='/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1/share:/nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4/share:/nix/store/w1m6rlpvqj1a6ch5j6sqhl9k0fvi40ar-vscode-extension-vadimcn-vscode-lldb-1.11.4/share:/nix/store/c2p7haf4zzkbrir9zs662r68c5dmylbq-patchelf-0.15.2/share'
 export XDG_DATA_DIRS
 __structuredAttrs=''
 export __structuredAttrs
@@ -172,7 +176,7 @@ mesonFlags=''
 export mesonFlags
 name='nix-shell-env'
 export name
-nativeBuildInputs='/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1 /nix/store/ad7airwvns9fnck27nw75ibzalc58105-wild-wrapper-0.8.0 /nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4'
+nativeBuildInputs='/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1 /nix/store/ad7airwvns9fnck27nw75ibzalc58105-wild-wrapper-0.8.0 /nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4 /nix/store/w1m6rlpvqj1a6ch5j6sqhl9k0fvi40ar-vscode-extension-vadimcn-vscode-lldb-1.11.4'
 export nativeBuildInputs
 out='/home/santamn/Documents/rectification/outputs/out'
 export out
@@ -193,7 +197,7 @@ phases='buildPhase'
 export phases
 pkg='/nix/store/a245z3cvf9x9sn0xlk6k8j9xhxbhda1z-gcc-wrapper-15.2.0'
 declare -a pkgsBuildBuild=('/nix/store/a245z3cvf9x9sn0xlk6k8j9xhxbhda1z-gcc-wrapper-15.2.0' '/nix/store/i6ppbrlpp6yki8qvka7nyv091xa8dchx-binutils-wrapper-2.44' )
-declare -a pkgsBuildHost=('/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1' '/nix/store/a245z3cvf9x9sn0xlk6k8j9xhxbhda1z-gcc-wrapper-15.2.0' '/nix/store/i6ppbrlpp6yki8qvka7nyv091xa8dchx-binutils-wrapper-2.44' '/nix/store/ad7airwvns9fnck27nw75ibzalc58105-wild-wrapper-0.8.0' '/nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4' '/nix/store/c2p7haf4zzkbrir9zs662r68c5dmylbq-patchelf-0.15.2' '/nix/store/y03z7y8cgdck7vk8qpim30vps4d22gzv-update-autotools-gnu-config-scripts-hook' '/nix/store/0y5xmdb7qfvimjwbq7ibg1xdgkgjwqng-no-broken-symlinks.sh' '/nix/store/cv1d7p48379km6a85h4zp6kr86brh32q-audit-tmpdir.sh' '/nix/store/85clx3b0xkdf58jn161iy80y5223ilbi-compress-man-pages.sh' '/nix/store/p3l1a5y7nllfyrjn2krlwgcc3z0cd3fq-make-symlinks-relative.sh' '/nix/store/5yzw0vhkyszf2d179m0qfkgxmp5wjjx4-move-docs.sh' '/nix/store/fyaryjvghbkpfnsyw97hb3lyb37s1pd6-move-lib64.sh' '/nix/store/kd4xwxjpjxi71jkm6ka0np72if9rm3y0-move-sbin.sh' '/nix/store/pag6l61paj1dc9sv15l7bm5c17xn5kyk-move-systemd-user-units.sh' '/nix/store/cmzya9irvxzlkh7lfy6i82gbp0saxqj3-multiple-outputs.sh' '/nix/store/x8c40nfigps493a07sdr2pm5s9j1cdc0-patch-shebangs.sh' '/nix/store/cickvswrvann041nqxb0rxilc46svw1n-prune-libtool-files.sh' '/nix/store/xyff06pkhki3qy1ls77w10s0v79c9il0-reproducible-builds.sh' '/nix/store/z7k98578dfzi6l3hsvbivzm7hfqlk0zc-set-source-date-epoch-to-latest.sh' '/nix/store/pilsssjjdxvdphlg2h19p0bfx5q0jzkn-strip.sh' )
+declare -a pkgsBuildHost=('/nix/store/d7w2q1i4780ad186rf70lc67vd08k62b-rust-default-1.91.1' '/nix/store/a245z3cvf9x9sn0xlk6k8j9xhxbhda1z-gcc-wrapper-15.2.0' '/nix/store/i6ppbrlpp6yki8qvka7nyv091xa8dchx-binutils-wrapper-2.44' '/nix/store/ad7airwvns9fnck27nw75ibzalc58105-wild-wrapper-0.8.0' '/nix/store/flpgz5k53r20qifkw9cchjsz69j094lm-gnuplot-6.0.4' '/nix/store/w1m6rlpvqj1a6ch5j6sqhl9k0fvi40ar-vscode-extension-vadimcn-vscode-lldb-1.11.4' '/nix/store/c2p7haf4zzkbrir9zs662r68c5dmylbq-patchelf-0.15.2' '/nix/store/y03z7y8cgdck7vk8qpim30vps4d22gzv-update-autotools-gnu-config-scripts-hook' '/nix/store/0y5xmdb7qfvimjwbq7ibg1xdgkgjwqng-no-broken-symlinks.sh' '/nix/store/cv1d7p48379km6a85h4zp6kr86brh32q-audit-tmpdir.sh' '/nix/store/85clx3b0xkdf58jn161iy80y5223ilbi-compress-man-pages.sh' '/nix/store/p3l1a5y7nllfyrjn2krlwgcc3z0cd3fq-make-symlinks-relative.sh' '/nix/store/5yzw0vhkyszf2d179m0qfkgxmp5wjjx4-move-docs.sh' '/nix/store/fyaryjvghbkpfnsyw97hb3lyb37s1pd6-move-lib64.sh' '/nix/store/kd4xwxjpjxi71jkm6ka0np72if9rm3y0-move-sbin.sh' '/nix/store/pag6l61paj1dc9sv15l7bm5c17xn5kyk-move-systemd-user-units.sh' '/nix/store/cmzya9irvxzlkh7lfy6i82gbp0saxqj3-multiple-outputs.sh' '/nix/store/x8c40nfigps493a07sdr2pm5s9j1cdc0-patch-shebangs.sh' '/nix/store/cickvswrvann041nqxb0rxilc46svw1n-prune-libtool-files.sh' '/nix/store/xyff06pkhki3qy1ls77w10s0v79c9il0-reproducible-builds.sh' '/nix/store/z7k98578dfzi6l3hsvbivzm7hfqlk0zc-set-source-date-epoch-to-latest.sh' '/nix/store/pilsssjjdxvdphlg2h19p0bfx5q0jzkn-strip.sh' )
 declare -a pkgsBuildTarget=()
 declare -a pkgsHostHost=()
 declare -a pkgsHostTarget=()
